@@ -5,6 +5,7 @@ import {
   canJudgeScoreTeam,
   computeWeightedTotalScore,
   computeSkillOverlap,
+  validateKycForRegistrationOrTeamJoin,
 } from './hackathonEnforcementRules';
 import { HackathonCriterion } from '../types';
 
@@ -141,4 +142,20 @@ describe('Hackathon Enforcement & Auditing Business Rules', () => {
       expect(res.matchingSkills).toEqual(['PyTorch', 'ROS 2']);
     });
   });
+
+  describe('KYC Gating for Team Joining & Registrations', () => {
+    it('permits verified user to join team or register', () => {
+      const res = validateKycForRegistrationOrTeamJoin('verified');
+      expect(res.allowed).toBe(true);
+    });
+
+    it('blocks unverified, pending, or rejected user', () => {
+      expect(validateKycForRegistrationOrTeamJoin('unverified').allowed).toBe(false);
+      expect(validateKycForRegistrationOrTeamJoin('pending').allowed).toBe(false);
+      expect(validateKycForRegistrationOrTeamJoin('rejected').allowed).toBe(false);
+      expect(validateKycForRegistrationOrTeamJoin(undefined).allowed).toBe(false);
+      expect(validateKycForRegistrationOrTeamJoin(null).allowed).toBe(false);
+    });
+  });
 });
+

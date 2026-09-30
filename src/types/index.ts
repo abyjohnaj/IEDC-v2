@@ -156,6 +156,7 @@ export interface User {
   bookmarkedEditions: string[];
   activeTeamId?: string;
   kyc: KYCDetails;
+  kycStatus?: KYCStatus;
   createdAt: string;
   lastLoginAt?: string;
 }

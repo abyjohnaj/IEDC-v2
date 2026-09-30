@@ -114,3 +114,20 @@ export function computeSkillOverlap(
     matchingSkills: matches,
   };
 }
+
+/**
+ * Validates whether user is KYC-verified before allowing registration or team join.
+ */
+export function validateKycForRegistrationOrTeamJoin(
+  kycStatus: string | null | undefined
+): { allowed: boolean; error?: string } {
+  if (kycStatus !== 'verified') {
+    return {
+      allowed: false,
+      error: 'KYC verification required. Your KYC status must be verified to register or join a hackathon team.',
+    };
+  }
+
+  return { allowed: true };
+}
+

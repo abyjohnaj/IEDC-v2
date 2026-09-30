@@ -37,9 +37,17 @@ import {
   Filter,
   Search,
   MessageCircle,
-  Hash
+  Hash,
+  Key,
+  GitCommit,
+  AlertTriangle
 } from 'lucide-react';
 import '../styles/hackathon.css';
+import {
+  validateKycForRegistrationOrTeamJoin,
+  checkSubmissionDeadline
+} from '../utils/hackathonEnforcementRules';
+
 
 const AVAILABLE_ROLES: HackathonRole[] = [
   'Team Lead',
@@ -105,7 +113,13 @@ export const HackathonPortalPage: React.FC = () => {
   const [submissionDemoVideo, setSubmissionDemoVideo] = useState('');
   const [submissionLiveDemo, setSubmissionLiveDemo] = useState('');
   const [submissionPitchDeck, setSubmissionPitchDeck] = useState('');
+  const [submissionCommitSha, setSubmissionCommitSha] = useState('');
   const [savingSubmission, setSavingSubmission] = useState(false);
+
+  // Invite Code Modal State
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [inviteRoleInput, setInviteRoleInput] = useState<HackathonRole>('Frontend Dev');
 
   // Load teams and current user's team
   const refreshTeams = () => {
@@ -266,6 +280,12 @@ export const HackathonPortalPage: React.FC = () => {
   const handleConfirmJoin = async () => {
     if (!user || !joinTargetTeam) return;
 
+    const kycCheck = validateKycForRegistrationOrTeamJoin(user.kyc?.status || user.kycStatus);
+    if (!kycCheck.allowed) {
+      alert(kycCheck.error);
+      return;
+    }
+
     const res = await hackathonService.joinTeam(
       joinTargetTeam.id,
       user,
@@ -286,6 +306,59 @@ export const HackathonPortalPage: React.FC = () => {
     refreshTeams();
   };
 
+  const handleJoinViaInviteCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      openAuthModal('login');
+      return;
+    }
+
+    if (!inviteCodeInput.trim()) {
+      alert('Please enter a valid squad invite code.');
+      return;
+    }
+
+    const kycCheck = validateKycForRegistrationOrTeamJoin(user.kyc?.status || user.kycStatus);
+    if (!kycCheck.allowed) {
+      alert(kycCheck.error);
+      return;
+    }
+
+    try {
+      const res = await hackathonService.joinTeamWithInvite(inviteCodeInput.trim(), inviteRoleInput);
+      if (res.success) {
+        showToast(`Joined ${res.team_name || 'team'} successfully! Welcome aboard!`);
+        setIsInviteModalOpen(false);
+        setInviteCodeInput('');
+        refreshTeams();
+        if (res.team_id) {
+          setSelectedTeamId(res.team_id);
+          setActiveTab('my-team');
+        }
+        return;
+      }
+    } catch {
+      // Fallback: match against local stored teams inviteCode
+      const matched = teams.find(t => t.inviteCode.toUpperCase() === inviteCodeInput.trim().toUpperCase());
+      if (matched) {
+        const joinRes = await hackathonService.joinTeam(matched.id, user, inviteRoleInput);
+        if (joinRes.joined) {
+          setSelectedTeamId(matched.id);
+          setActiveTab('my-team');
+          showToast(`Joined team "${matched.name}" successfully with code!`);
+          setIsInviteModalOpen(false);
+          setInviteCodeInput('');
+          refreshTeams();
+          return;
+        } else if (joinRes.error) {
+          alert(joinRes.error);
+          return;
+        }
+      }
+      alert('Invalid, full, or expired invite code. Please confirm with your team leader.');
+    }
+  };
+
   const handleRespondRequest = async (requestId: string, decision: 'accepted' | 'declined') => {
     if (!activeTeam) return;
     await hackathonService.respondToJoinRequest(activeTeam.id, requestId, decision);
@@ -303,9 +376,17 @@ export const HackathonPortalPage: React.FC = () => {
   const handleSaveSubmission = async (status: 'draft' | 'submitted') => {
     if (!activeTeam) return;
 
-    if (status === 'submitted' && (!submissionTitle.trim() || !submissionGithub.trim())) {
-      alert('Project Title and GitHub Repository URL are required to submit to jury.');
-      return;
+    if (status === 'submitted') {
+      const deadlineCheck = checkSubmissionDeadline(hackathon.endDate);
+      if (!deadlineCheck.allowed) {
+        alert(deadlineCheck.error || 'Submission deadline has passed. Submissions are now locked.');
+        return;
+      }
+
+      if (!submissionTitle.trim() || !submissionGithub.trim()) {
+        alert('Project Title and GitHub Repository URL are required to submit to jury.');
+        return;
+      }
     }
 
     setSavingSubmission(true);
@@ -326,7 +407,7 @@ export const HackathonPortalPage: React.FC = () => {
       };
 
       await hackathonService.saveProjectSubmission(activeTeam.id, sub);
-      showToast(status === 'submitted' ? 'Project finalized & submitted to Hackathon Jury!' : 'Draft saved successfully!');
+      showToast(status === 'submitted' ? 'Project finalized & snapshot saved for Hackathon Jury!' : 'Draft saved successfully!');
       refreshTeams();
     } catch (err: any) {
       alert(err.message || 'Error saving project');
@@ -439,6 +520,17 @@ export const HackathonPortalPage: React.FC = () => {
             >
               <Plus size={16} />
               <span>Form New Hackathon Squad</span>
+            </button>
+
+            <button
+              className="hackathon-nav-btn"
+              onClick={() => {
+                if (!user) openAuthModal('login');
+                else setIsInviteModalOpen(true);
+              }}
+            >
+              <Key size={16} />
+              <span>Join with Invite Code</span>
             </button>
           </div>
         </div>
@@ -975,6 +1067,19 @@ export const HackathonPortalPage: React.FC = () => {
 
                   <div className="form-group-half">
                     <label className="form-label">
+                      <GitCommit size={14} /> Git Commit SHA (Auditable Snapshot)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 7f8a9c3d4e (immutable snapshot)"
+                      value={submissionCommitSha}
+                      onChange={e => setSubmissionCommitSha(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-half">
+                    <label className="form-label">
                       <Video size={14} /> Demo Video Link (YouTube / Loom)
                     </label>
                     <input
@@ -1217,6 +1322,7 @@ export const HackathonPortalPage: React.FC = () => {
       )}
 
       {/* JOIN SQUAD MODAL */}
+      {/* Join Squad Modal */}
       {isJoinModalOpen && joinTargetTeam && (
         <div className="hackathon-modal-overlay" onClick={() => setIsJoinModalOpen(false)}>
           <div className="hackathon-modal-card" onClick={e => e.stopPropagation()}>
@@ -1281,6 +1387,72 @@ export const HackathonPortalPage: React.FC = () => {
         </div>
       )}
 
+      {/* Join via Invite Code Modal */}
+      {isInviteModalOpen && (
+        <div className="hackathon-modal-overlay" onClick={() => setIsInviteModalOpen(false)}>
+          <div className="hackathon-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Key size={18} color="var(--accent-cyan)" /> Enter Team Invite Code
+              </h3>
+              <button className="modal-close" onClick={() => setIsInviteModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleJoinViaInviteCode}>
+              <div className="modal-body">
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '1.25rem' }}>
+                  Have an invite code from a squad leader? Enter the 6-character code below to join their team directly.
+                </p>
+
+                <div className="form-group-full" style={{ marginBottom: '1rem' }}>
+                  <label className="form-label">Invite Code *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. NOVA26"
+                    value={inviteCodeInput}
+                    onChange={e => setInviteCodeInput(e.target.value.toUpperCase())}
+                    style={{ textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 800, fontSize: '1.1rem' }}
+                    required
+                  />
+                </div>
+
+                <div className="form-group-full" style={{ marginBottom: '1.25rem' }}>
+                  <label className="form-label">Role in Team *</label>
+                  <select
+                    className="form-input"
+                    value={inviteRoleInput}
+                    onChange={e => setInviteRoleInput(e.target.value as HackathonRole)}
+                  >
+                    {AVAILABLE_ROLES.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsInviteModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                  >
+                    Join Team
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Global Toast */}
       {toastMessage && (
         <div className="hackathon-toast">
@@ -1293,3 +1465,4 @@ export const HackathonPortalPage: React.FC = () => {
     </div>
   );
 };
+

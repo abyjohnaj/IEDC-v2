@@ -16,6 +16,11 @@ import {
   TeamMatchSuggestion
 } from '../types';
 import { getSupabase } from './supabaseClient';
+import {
+  validateKycForRegistrationOrTeamJoin,
+  checkSubmissionDeadline
+} from '../utils/hackathonEnforcementRules';
+
 
 const HACKATHONS_STORAGE_KEY = 'iedc_hackathon_events';
 const TEAMS_STORAGE_KEY = 'iedc_hackathon_teams';
@@ -524,6 +529,12 @@ export const hackathonService = {
 
     const team = teams[index];
 
+    // KYC Verification Enforcement
+    const kycCheck = validateKycForRegistrationOrTeamJoin(user.kyc?.status || user.kycStatus);
+    if (!kycCheck.allowed) {
+      return { joined: false, pending: false, error: kycCheck.error };
+    }
+
     // Check if already in team
     if (team.members.some(m => m.userId === user.id)) {
       return { joined: true, pending: false, error: 'You are already a member of this team.' };
@@ -752,6 +763,20 @@ export const hackathonService = {
     const teams = getStoredTeams();
     const index = teams.findIndex(t => t.id === teamId);
     if (index === -1) throw new Error('Team not found');
+
+    const team = teams[index];
+
+    // Strict Submission Deadline Check
+    if (submission.status === 'submitted') {
+      const hackathons = this.getHackathons();
+      const hackathon = hackathons.find(h => h.id === team.hackathonId) || hackathons[0];
+      if (hackathon && hackathon.endDate) {
+        const deadlineCheck = checkSubmissionDeadline(hackathon.endDate);
+        if (!deadlineCheck.allowed) {
+          throw new Error(deadlineCheck.error || 'Submission deadline has passed. Submissions are now locked.');
+        }
+      }
+    }
 
     const updatedSub: ProjectSubmission = {
       ...submission,

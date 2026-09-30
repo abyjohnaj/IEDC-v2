@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { hackathonService } from '../../services/hackathonService';
-import { HackathonTeam, HackathonEvent, ProjectSubmission } from '../../types';
+import { reportService } from '../../services/reportService';
+import { HackathonTeam, HackathonEvent, ProjectSubmission, HackathonLeaderboardRow } from '../../types';
 import {
   Users,
   Award,
@@ -17,7 +18,12 @@ import {
   Clock,
   Send,
   Eye,
-  X
+  X,
+  Download,
+  Trophy,
+  FileSpreadsheet,
+  Scale,
+  RefreshCw
 } from 'lucide-react';
 
 interface AdminHackathonSectionProps {
@@ -46,6 +52,85 @@ export const AdminHackathonSection: React.FC<AdminHackathonSectionProps> = ({ on
 
   const refresh = () => {
     setTeams(hackathonService.getAllTeams(selectedHackathonId));
+  };
+
+  // View switcher state
+  const [activeView, setActiveView] = useState<'submissions' | 'leaderboard'>('submissions');
+  const [leaderboard, setLeaderboard] = useState<HackathonLeaderboardRow[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+
+  const fetchLeaderboardData = async () => {
+    setIsLoadingLeaderboard(true);
+    try {
+      const rows = await hackathonService.getLeaderboard(selectedHackathonId);
+      if (rows && rows.length > 0) {
+        setLeaderboard(rows);
+      } else {
+        // Fallback calculation from submitted teams
+        const submitted = teams
+          .filter(t => t.projectSubmission?.score?.total)
+          .map(t => ({
+            teamId: t.id,
+            teamName: t.name,
+            track: t.track,
+            projectTitle: t.projectSubmission?.projectTitle,
+            totalScore: t.projectSubmission?.score?.total || 0,
+            judgesCount: 1,
+            rank: 0
+          }))
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .map((item, idx) => ({ ...item, rank: idx + 1 }));
+        setLeaderboard(submitted);
+      }
+    } catch {
+      // Fallback calculation from submitted teams
+      const submitted = teams
+        .filter(t => t.projectSubmission?.score?.total)
+        .map(t => ({
+          teamId: t.id,
+          teamName: t.name,
+          track: t.track,
+          projectTitle: t.projectSubmission?.projectTitle,
+          totalScore: t.projectSubmission?.score?.total || 0,
+          judgesCount: 1,
+          rank: 0
+        }))
+        .sort((a, b) => b.totalScore - a.totalScore)
+        .map((item, idx) => ({ ...item, rank: idx + 1 }));
+      setLeaderboard(submitted);
+    } finally {
+      setIsLoadingLeaderboard(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'leaderboard') {
+      fetchLeaderboardData();
+    }
+  }, [activeView, selectedHackathonId, teams]);
+
+  const handleExportRankings = () => {
+    const csv = reportService.generateHackathonRankingsCSV(leaderboard, activeHackathon.title);
+    reportService.downloadCSV(csv, `${activeHackathon.title.toLowerCase().replace(/\s+/g, '-')}-rankings.csv`);
+    onNotify('📥 Official Hackathon rankings CSV downloaded successfully!');
+  };
+
+  const handleExportScoreSheets = async () => {
+    const sheets = teams
+      .filter(t => t.projectSubmission?.score)
+      .flatMap(t => {
+        const score = t.projectSubmission!.score!;
+        return [
+          { teamName: t.name, track: t.track, judgeName: t.projectSubmission?.reviewedBy || reviewerName, criterionName: 'Innovation & Originality', weight: 1.5, score: score.innovation, feedback: t.projectSubmission?.adminFeedback },
+          { teamName: t.name, track: t.track, judgeName: t.projectSubmission?.reviewedBy || reviewerName, criterionName: 'Technical Architecture & Code', weight: 1.5, score: score.technical },
+          { teamName: t.name, track: t.track, judgeName: t.projectSubmission?.reviewedBy || reviewerName, criterionName: 'UI/UX & Prototype Polish', weight: 1.0, score: score.presentation },
+          { teamName: t.name, track: t.track, judgeName: t.projectSubmission?.reviewedBy || reviewerName, criterionName: 'Feasibility & Impact', weight: 1.0, score: score.feasibility }
+        ];
+      });
+
+    const csv = reportService.generateJudgeScoreSheetCSV(sheets);
+    reportService.downloadCSV(csv, `${activeHackathon.title.toLowerCase().replace(/\s+/g, '-')}-judge-scoresheets.csv`);
+    onNotify('📊 RFC-4180 compliant Judge score sheets exported successfully!');
   };
 
   useEffect(() => {
@@ -160,46 +245,195 @@ export const AdminHackathonSection: React.FC<AdminHackathonSectionProps> = ({ on
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: '1.25rem'
-        }}
-      >
-        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            className="form-input"
-            style={{ paddingLeft: '2.5rem' }}
-            placeholder="Search teams by squad name, track, or member..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
+      {/* View Switcher & Action Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className={`btn ${activeView === 'submissions' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            onClick={() => setActiveView('submissions')}
+          >
+            <Users size={15} /> Squad Submissions & Grading ({teams.length})
+          </button>
+          <button
+            className={`btn ${activeView === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            onClick={() => setActiveView('leaderboard')}
+          >
+            <Trophy size={15} /> Official Leaderboard & Auditing
+          </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <select
-            className="form-input"
-            style={{ width: 'auto' }}
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Submissions ({teams.length})</option>
-            <option value="submitted">Submitted Only ({totalSubmitted})</option>
-            <option value="draft">Draft Only</option>
-            <option value="none">No Submission Yet</option>
-          </select>
-        </div>
+        {activeView === 'leaderboard' && (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              onClick={handleExportRankings}
+            >
+              <Download size={14} /> Export Rankings (CSV)
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              onClick={handleExportScoreSheets}
+            >
+              <FileSpreadsheet size={14} /> Export Score Sheets (CSV)
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem' }}
+              onClick={fetchLeaderboardData}
+              title="Refresh Leaderboard"
+            >
+              <RefreshCw size={14} className={isLoadingLeaderboard ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Teams Table */}
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
+      {activeView === 'submissions' ? (
+        <>
+          {/* Filter and Search Bar */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              marginBottom: '1.25rem'
+            }}
+          >
+            <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                className="form-input"
+                style={{ paddingLeft: '2.5rem' }}
+                placeholder="Search teams by squad name, track, or member..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.6rem' }}>
+              <select
+                className="form-input"
+                style={{ width: 'auto' }}
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Submissions ({teams.length})</option>
+                <option value="submitted">Submitted Only ({totalSubmitted})</option>
+                <option value="draft">Draft Only</option>
+                <option value="none">No Submission Yet</option>
+              </select>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* OFFICIAL LEADERBOARD VIEW */
+        <div style={{ marginBottom: '1.5rem' }}>
+          {/* Criteria info card */}
+          <div
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.8rem'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Scale size={18} color="var(--accent-cyan)" />
+              <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Weighted Judging Criteria:</span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+              <span style={{ background: 'var(--bg-card)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                Innovation (1.5x)
+              </span>
+              <span style={{ background: 'var(--bg-card)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                Technical Complexity (1.5x)
+              </span>
+              <span style={{ background: 'var(--bg-card)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                UI/UX polish (1.0x)
+              </span>
+              <span style={{ background: 'var(--bg-card)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                Pitch & Impact (1.0x)
+              </span>
+            </div>
+          </div>
+
+          {/* Leaderboard Table */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '0.9rem 1rem', fontWeight: 700, width: '70px' }}>Rank</th>
+                  <th style={{ padding: '0.9rem 1rem', fontWeight: 700 }}>Squad & Track</th>
+                  <th style={{ padding: '0.9rem 1rem', fontWeight: 700 }}>Project Title</th>
+                  <th style={{ padding: '0.9rem 1rem', fontWeight: 700 }}>Jury Evaluations</th>
+                  <th style={{ padding: '0.9rem 1rem', fontWeight: 700, textAlign: 'right' }}>Weighted Score / 100</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No scored projects recorded on the official leaderboard yet.
+                    </td>
+                  </tr>
+                ) : (
+                  leaderboard.map(row => (
+                    <tr key={row.teamId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '1rem', fontWeight: 900 }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            background: row.rank === 1 ? 'rgba(234, 179, 8, 0.2)' : row.rank === 2 ? 'rgba(148, 163, 184, 0.2)' : row.rank === 3 ? 'rgba(180, 83, 9, 0.2)' : 'var(--bg-secondary)',
+                            color: row.rank === 1 ? '#eab308' : row.rank === 2 ? '#94a3b8' : row.rank === 3 ? '#b45309' : 'var(--text-primary)'
+                          }}
+                        >
+                          #{row.rank}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{row.teamName}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)' }}>{row.track}</div>
+                      </td>
+                      <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
+                        {row.projectTitle || 'N/A'}
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ fontSize: '0.78rem', background: 'var(--bg-secondary)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                          {row.judgesCount} evaluation{row.judgesCount !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, fontSize: '1.15rem', color: '#10b981' }}>
+                        {row.totalScore.toFixed(1)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeView === 'submissions' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
           <thead>
             <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
@@ -389,6 +623,7 @@ export const AdminHackathonSection: React.FC<AdminHackathonSectionProps> = ({ on
           </tbody>
         </table>
       </div>
+      )}
 
       {/* CHAT LOGS MODAL */}
       {inspectChatTeam && (
