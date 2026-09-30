@@ -209,11 +209,40 @@ export const ideaBoxService = {
       try {
         const { data, error } = await sb
           .from('ideabox_submissions')
-          .select('*')
+          .select('*, idea_votes(user_id)')
           .order('created_at', { ascending: false });
 
         if (!error && data && data.length > 0) {
-          return data;
+          return data.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            domain: row.domain,
+            elevatorPitch: row.elevator_pitch || row.elevatorPitch || '',
+            problemStatement: row.problem_statement || row.problemStatement || '',
+            proposedSolution: row.proposed_solution || row.proposedSolution || '',
+            techStack: row.tech_stack || row.techStack || [],
+            stage: row.stage,
+            targetAudience: row.target_audience || row.targetAudience || '',
+            estimatedBudget: row.estimated_budget || row.estimatedBudget,
+            authorId: row.author_id || row.authorId,
+            authorName: row.author_name || row.authorName,
+            authorEmail: row.author_email || row.authorEmail,
+            authorAvatar: row.author_avatar || row.authorAvatar,
+            authorRole: row.author_role || row.authorRole,
+            authorDepartment: row.author_department || row.authorDepartment,
+            upvotes: row.upvotes ?? (row.idea_votes ? row.idea_votes.length : 0),
+            upvoters: row.idea_votes ? row.idea_votes.map((v: { user_id: string }) => v.user_id) : (row.upvoters || []),
+            commentsCount: row.comments_count ?? row.commentsCount ?? 0,
+            comments: row.comments || [],
+            status: row.status,
+            adminRating: row.admin_rating ?? row.adminRating,
+            adminFeedback: row.admin_feedback || row.adminFeedback,
+            adminReviewedBy: row.admin_reviewed_by || row.adminReviewedBy,
+            adminReviewedAt: row.admin_reviewed_at || row.adminReviewedAt,
+            incubatorTrackAssigned: row.incubator_track_assigned || row.incubatorTrackAssigned,
+            createdAt: row.created_at || row.createdAt,
+            updatedAt: row.updated_at || row.updatedAt
+          }));
         }
       } catch (err) {
         // fallback
@@ -242,7 +271,33 @@ export const ideaBoxService = {
     const sb = getSupabase();
     if (sb) {
       try {
-        await sb.from('ideabox_submissions').insert([newIdea]);
+        await sb.from('ideabox_submissions').insert([{
+          id: newIdea.id,
+          title: newIdea.title,
+          domain: newIdea.domain,
+          elevator_pitch: newIdea.elevatorPitch,
+          problem_statement: newIdea.problemStatement,
+          proposed_solution: newIdea.proposedSolution,
+          tech_stack: newIdea.techStack,
+          stage: newIdea.stage,
+          target_audience: newIdea.targetAudience,
+          estimated_budget: newIdea.estimatedBudget,
+          author_id: newIdea.authorId,
+          author_name: newIdea.authorName,
+          author_email: newIdea.authorEmail,
+          author_avatar: newIdea.authorAvatar,
+          author_role: newIdea.authorRole,
+          author_department: newIdea.authorDepartment,
+          status: 'Pending',
+          created_at: newIdea.createdAt
+        }]);
+
+        if (submission.authorId && !submission.authorId.startsWith('usr_')) {
+          await sb.from('idea_votes').insert([{
+            idea_id: newIdea.id,
+            user_id: submission.authorId
+          }]);
+        }
       } catch (err) {
         console.warn('Supabase ideabox insert error, using local:', err);
       }

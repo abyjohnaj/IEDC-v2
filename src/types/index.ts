@@ -344,3 +344,44 @@ export interface HackathonEvent {
   rules: string[];
 }
 
+export type HackathonStatus = 'Upcoming' | 'Live' | 'Judging' | 'Completed';
+
+// ==========================================
+// Relational v3 Core Data Models
+// ==========================================
+export interface IdeaVote {
+  idea_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface UserRoleAssignment {
+  id: string;
+  user_id: string;
+  role: UserRole;
+  scope: string; // e.g. department name or 'global'
+  created_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor_id?: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface StatusHistoryEntry {
+  id: string;
+  entity_type: 'idea' | 'kyc';
+  entity_id: string;
+  old_status?: string | null;
+  new_status: string;
+  changed_by?: string | null;
+  reason?: string | null;
+  created_at: string;
+}
+

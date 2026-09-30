@@ -1,4 +1,4 @@
-import { ExecomMember, ExecomStructure, User } from '../types';
+import { ExecomMember, ExecomStructure, User, UserRole } from '../types';
 import { initialExecomData } from '../data/execomData';
 import { authService } from './authService';
 
@@ -59,17 +59,19 @@ export const execomService = {
     }
 
     // 1. Update user role in auth database according to leadership track
-    let targetRole: any = 'Execom';
+    let targetRole: UserRole = 'Execom';
     if (data.category === 'nodal') {
       targetRole = candidate.role === 'Admin' ? 'Admin' : 'Faculty';
     } else if (data.category === 'coordinators') {
       targetRole = candidate.role === 'Faculty' ? 'Faculty' : 'Execom';
     }
 
-    await authService.updateProfile(candidate.id, {
-      role: targetRole,
-      linkedin: data.linkedin || candidate.linkedin
-    });
+    await authService.adminSetUserRole(candidate.id, targetRole, candidate.department || 'global');
+    if (data.linkedin) {
+      await authService.updateProfile(candidate.id, {
+        linkedin: data.linkedin
+      });
+    }
 
     // 2. Build the Execom member item
     const newMember: ExecomMember = {

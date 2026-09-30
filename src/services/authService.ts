@@ -410,44 +410,64 @@ export function openKYCModal(): void {
 }
 
 // Helper: map Supabase profile + KYC records to User object
-function mapSupabaseUser(profile: any, kycRecord?: any): User {
+function mapSupabaseUser(
+  profile: Record<string, unknown>, 
+  kycRecord?: Record<string, unknown>,
+  userRoles?: { role: string; scope: string }[]
+): User {
+  let resolvedRole: UserRole = (profile.role as UserRole) || 'Student';
+  if (userRoles && userRoles.length > 0) {
+    const rolePriority: Record<string, number> = {
+      Admin: 1,
+      Execom: 2,
+      Faculty: 3,
+      Innovator: 4,
+      Alumni: 5,
+      ExternalParticipant: 6,
+      Student: 7
+    };
+    const sorted = [...userRoles].sort((a, b) => (rolePriority[a.role] || 99) - (rolePriority[b.role] || 99));
+    resolvedRole = (sorted[0].role as UserRole) || resolvedRole;
+  }
+
+  const kycDocLast4 = (kycRecord?.doc_number_last4 as string) || 
+    (typeof kycRecord?.doc_number === 'string' ? (kycRecord.doc_number as string).slice(-4) : undefined);
+
   return {
-    id: profile.id,
-    fullName: profile.full_name || 'Student Member',
-    email: profile.email,
-    phone: profile.phone || '',
-    avatar: profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(profile.full_name || profile.email)}`,
-    role: profile.role || 'Student',
-    department: profile.department || 'Computer Science & Engineering',
-    semester: profile.semester || 'Semester 4',
-    collegeId: profile.college_id || '',
-    bio: profile.bio || '',
-    skills: profile.skills || ['Innovation'],
-    github: profile.github || '',
-    linkedin: profile.linkedin || '',
+    id: String(profile.id),
+    fullName: (profile.full_name as string) || 'Student Member',
+    email: String(profile.email),
+    phone: (profile.phone as string) || '',
+    avatar: (profile.avatar_url as string) || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent((profile.full_name as string) || (profile.email as string))}`,
+    role: resolvedRole,
+    department: (profile.department as string) || 'Computer Science & Engineering',
+    semester: (profile.semester as string) || 'Semester 4',
+    collegeId: (profile.college_id as string) || '',
+    bio: (profile.bio as string) || '',
+    skills: (profile.skills as string[]) || ['Innovation'],
+    github: (profile.github as string) || '',
+    linkedin: (profile.linkedin as string) || '',
     startupIdeasCount: 0,
     registeredEvents: [],
     bookmarkedEditions: [],
     kyc: {
-      status: kycRecord?.status || 'unverified',
-      docType: kycRecord?.doc_type || 'student_id',
-      docNumberLast4: kycRecord?.doc_number_last4 || (kycRecord?.doc_number ? kycRecord.doc_number.slice(-4) : undefined),
-      docNumber: kycRecord?.doc_number_last4 
-        ? `•••• •••• ${kycRecord.doc_number_last4}` 
-        : (kycRecord?.doc_number ? `•••• •••• ${kycRecord.doc_number.slice(-4)}` : '•••• •••• 0000'),
-      docFileName: kycRecord?.doc_file_name,
-      docFilePath: kycRecord?.doc_file_path,
+      status: (kycRecord?.status as any) || 'unverified',
+      docType: (kycRecord?.doc_type as any) || 'student_id',
+      docNumberLast4: kycDocLast4,
+      docNumber: kycDocLast4 ? `•••• •••• ${kycDocLast4}` : '•••• •••• 0000',
+      docFileName: (kycRecord?.doc_file_name as string) || undefined,
+      docFilePath: (kycRecord?.doc_file_path as string) || undefined,
       docFileUrl: undefined, // Always accessed via short-lived signed URL
-      fullName: kycRecord?.full_name || profile.full_name || '',
-      dob: kycRecord?.dob,
-      institution: kycRecord?.institution || 'Baselios Mathews II College of Engineering',
-      submittedAt: kycRecord?.submitted_at,
-      verifiedAt: kycRecord?.verified_at,
-      retentionDeleteAt: kycRecord?.retention_delete_at,
-      rejectionReason: kycRecord?.rejection_reason,
-      adminRemarks: kycRecord?.admin_remarks
+      fullName: (kycRecord?.full_name as string) || (profile.full_name as string) || '',
+      dob: (kycRecord?.dob as string) || undefined,
+      institution: (kycRecord?.institution as string) || 'Baselios Mathews II College of Engineering',
+      submittedAt: (kycRecord?.submitted_at as string) || undefined,
+      verifiedAt: (kycRecord?.verified_at as string) || undefined,
+      retentionDeleteAt: (kycRecord?.retention_delete_at as string) || undefined,
+      rejectionReason: (kycRecord?.rejection_reason as string) || undefined,
+      adminRemarks: (kycRecord?.admin_remarks as string) || undefined
     },
-    createdAt: profile.created_at || new Date().toISOString(),
+    createdAt: (profile.created_at as string) || new Date().toISOString(),
     lastLoginAt: new Date().toISOString()
   };
 }
@@ -499,12 +519,17 @@ export const authService = {
         });
 
         if (!authError && authData.user) {
-          // Fetch profile and KYC records from Supabase tables
+          // Fetch profile, user_roles and KYC records from Supabase tables
           const { data: profile } = await sb
             .from('profiles')
             .select('*')
             .eq('id', authData.user.id)
             .single();
+
+          const { data: userRoles } = await sb
+            .from('user_roles')
+            .select('role, scope')
+            .eq('user_id', authData.user.id);
 
           const { data: kycData } = await sb
             .from('kyc_verifications')
@@ -513,7 +538,7 @@ export const authService = {
             .maybeSingle();
 
           if (profile) {
-            const user = mapSupabaseUser(profile, kycData);
+            const user = mapSupabaseUser(profile, kycData, userRoles || undefined);
             this.setCurrentUser(user);
             return { success: true, user };
           }
@@ -944,6 +969,43 @@ export const authService = {
 
     this.setCurrentUser(updatedUser);
     return updatedUser;
+  },
+
+  // Admin RPC & Relational user_roles Assignment
+  async adminSetUserRole(targetUserId: string, newRole: UserRole, scope: string = 'global'): Promise<boolean> {
+    const sb = getSupabase();
+    if (sb && !targetUserId.startsWith('usr_')) {
+      try {
+        const { error } = await sb.rpc('admin_set_user_role', {
+          p_target_user_id: targetUserId,
+          p_new_role: newRole,
+          p_scope: scope
+        });
+        if (error) {
+          console.warn('RPC admin_set_user_role error, falling back to direct table upsert:', error);
+          await sb.from('user_roles').upsert({
+            user_id: targetUserId,
+            role: newRole,
+            scope
+          });
+          await sb.from('profiles').update({ role: newRole }).eq('id', targetUserId);
+        }
+      } catch (err) {
+        console.warn('adminSetUserRole exception:', err);
+      }
+    }
+
+    const users = getUsersDatabase();
+    const index = users.findIndex(u => u.id === targetUserId);
+    if (index !== -1) {
+      users[index].role = newRole;
+      saveUsersDatabase(users);
+      const curr = this.getCurrentUser();
+      if (curr && curr.id === targetUserId) {
+        this.setCurrentUser({ ...curr, role: newRole });
+      }
+    }
+    return true;
   },
 
   getAllUsers(): User[] {

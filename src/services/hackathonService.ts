@@ -8,6 +8,7 @@ import {
   HackathonRole,
   User
 } from '../types';
+import { getSupabase } from './supabaseClient';
 
 const HACKATHONS_STORAGE_KEY = 'iedc_hackathon_events';
 const TEAMS_STORAGE_KEY = 'iedc_hackathon_teams';
@@ -454,6 +455,44 @@ export const hackathonService = {
     const updated = [newTeam, ...teams];
     saveTeams(updated);
 
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        sb.from('hackathon_teams').insert([{
+          id: teamId,
+          hackathon_id: data.hackathonId,
+          hackathon_title: data.hackathonTitle,
+          name: newTeam.name,
+          tagline: newTeam.tagline,
+          track: newTeam.track,
+          max_members: newTeam.maxMembers,
+          is_open: newTeam.isOpen,
+          roles_needed: newTeam.rolesNeeded,
+          discord_invite_url: newTeam.discordInviteUrl,
+          whatsapp_group_url: newTeam.whatsappGroupUrl,
+          invite_code: newTeam.inviteCode,
+          created_at: newTeam.createdAt
+        }]).then(() => {
+          if (!data.leader.id.startsWith('usr_')) {
+            sb.from('team_members').insert([{
+              team_id: teamId,
+              user_id: data.leader.id,
+              name: leaderMember.name,
+              email: leaderMember.email,
+              avatar: leaderMember.avatar,
+              role_in_team: leaderMember.roleInTeam,
+              is_leader: true,
+              department: leaderMember.department,
+              college: leaderMember.college,
+              joined_at: leaderMember.joinedAt
+            }]).then(() => {});
+          }
+        });
+      } catch (err) {
+        console.warn('Supabase hackathon relational team insert error:', err);
+      }
+    }
+
     // Initial welcome message in chat
     const initialMsg: TeamChatMessage = {
       id: `msg_init_${Date.now()}`,
@@ -719,6 +758,32 @@ export const hackathonService = {
 
     saveTeams(teams);
 
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        sb.from('team_submissions').upsert({
+          team_id: teamId,
+          project_title: updatedSub.projectTitle,
+          tagline: updatedSub.tagline,
+          track: updatedSub.track,
+          overview: updatedSub.overview,
+          tech_stack: updatedSub.techStack,
+          github_url: updatedSub.githubUrl,
+          demo_video_url: updatedSub.demoVideoUrl,
+          live_demo_url: updatedSub.liveDemoUrl,
+          pitch_deck_url: updatedSub.pitchDeckUrl,
+          status: updatedSub.status,
+          score: updatedSub.score,
+          admin_feedback: updatedSub.adminFeedback,
+          reviewed_by: updatedSub.reviewedBy,
+          reviewed_at: updatedSub.reviewedAt,
+          submitted_at: updatedSub.submittedAt
+        }, { onConflict: 'team_id' }).then(() => {});
+      } catch (err) {
+        console.warn('Supabase team_submissions upsert error:', err);
+      }
+    }
+
     if (submission.status === 'submitted') {
       this.sendTeamChatMessage(teamId, {
         senderId: 'sys',
@@ -761,6 +826,20 @@ export const hackathonService = {
     };
 
     saveTeams(teams);
+
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        sb.from('team_submissions').update({
+          score,
+          admin_feedback: feedback,
+          reviewed_by: reviewerName,
+          reviewed_at: updatedSub.reviewedAt
+        }).eq('team_id', teamId).then(() => {});
+      } catch (err) {
+        console.warn('Supabase team_submissions grading update error:', err);
+      }
+    }
 
     this.sendTeamChatMessage(teamId, {
       senderId: 'sys',

@@ -685,6 +685,7 @@ export async function updateAdminKYCStatus(
           .eq('user_id', userId);
 
         if (status === 'verified') {
+          await sb.from('user_roles').upsert({ user_id: userId, role: 'Innovator', scope: 'global' });
           await sb.from('profiles').update({ role: 'Innovator' }).eq('id', userId);
         }
       }
