@@ -212,63 +212,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Quick Demo Login Helper Box */}
-          <div className="auth-demo-box">
-            <div className="auth-demo-title">
-              <ShieldCheck size={14} />
-              Instant Sandbox Demo Logins
+          {/* Quick Demo Login Helper Box (Enabled only in local dev sandbox) */}
+          {import.meta.env.VITE_ENABLE_DEMO === 'true' && (
+            <div className="auth-demo-box">
+              <div className="auth-demo-title">
+                <ShieldCheck size={14} />
+                Instant Sandbox Demo Logins
+              </div>
+              <div className="auth-demo-chips">
+                <button
+                  type="button"
+                  className="auth-demo-chip"
+                  onClick={() => handleQuickDemo('rahul')}
+                  title="Sign in as Rahul Verma (KYC Verified Innovator)"
+                >
+                  ⚡ Rahul (Innovator)
+                </button>
+                <button
+                  type="button"
+                  className="auth-demo-chip"
+                  onClick={() => handleQuickDemo('devika')}
+                  title="Sign in as Devika Suresh (Execom Student Lead)"
+                >
+                  ⚡ Devika (Execom Lead)
+                </button>
+                <button
+                  type="button"
+                  className="auth-demo-chip"
+                  onClick={() => handleQuickDemo('arun')}
+                  title="Sign in as Arun Kumar (External Hackathon Participant from TKM)"
+                >
+                  ⚡ Arun (External Hacker)
+                </button>
+                <button
+                  type="button"
+                  className="auth-demo-chip"
+                  onClick={() => handleQuickDemo('admin')}
+                  title="Sign in as Dr. Preetha M. (IEDC Nodal Officer / Admin)"
+                >
+                  ⚡ Dr. Preetha (Admin)
+                </button>
+                <button
+                  type="button"
+                  className="auth-demo-chip"
+                  onClick={() => handleQuickDemo('anjana')}
+                  title="Sign in as Anjana Pillai (KYC Pending Review)"
+                >
+                  ⚡ Anjana (Pending KYC)
+                </button>
+                <button
+                  type="button"
+                  className="auth-demo-chip"
+                  onClick={() => handleQuickDemo('aditya')}
+                  title="Sign in as Aditya Nair (New Unverified Student)"
+                >
+                  ⚡ Aditya (Student)
+                </button>
+              </div>
             </div>
-            <div className="auth-demo-chips">
-              <button
-                type="button"
-                className="auth-demo-chip"
-                onClick={() => handleQuickDemo('rahul')}
-                title="Sign in as Rahul Verma (KYC Verified Innovator)"
-              >
-                ⚡ Rahul (Innovator)
-              </button>
-              <button
-                type="button"
-                className="auth-demo-chip"
-                onClick={() => handleQuickDemo('devika')}
-                title="Sign in as Devika Suresh (Execom Student Lead)"
-              >
-                ⚡ Devika (Execom Lead)
-              </button>
-              <button
-                type="button"
-                className="auth-demo-chip"
-                onClick={() => handleQuickDemo('arun')}
-                title="Sign in as Arun Kumar (External Hackathon Participant from TKM)"
-              >
-                ⚡ Arun (External Hacker)
-              </button>
-              <button
-                type="button"
-                className="auth-demo-chip"
-                onClick={() => handleQuickDemo('admin')}
-                title="Sign in as Dr. Preetha M. (IEDC Nodal Officer / Admin)"
-              >
-                ⚡ Dr. Preetha (Admin)
-              </button>
-              <button
-                type="button"
-                className="auth-demo-chip"
-                onClick={() => handleQuickDemo('anjana')}
-                title="Sign in as Anjana Pillai (KYC Pending Review)"
-              >
-                ⚡ Anjana (Pending KYC)
-              </button>
-              <button
-                type="button"
-                className="auth-demo-chip"
-                onClick={() => handleQuickDemo('aditya')}
-                title="Sign in as Aditya Nair (New Unverified Student)"
-              >
-                ⚡ Aditya (Student)
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* TAB 1: LOGIN FORM */}
           {activeTab === 'login' && (

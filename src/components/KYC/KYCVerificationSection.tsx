@@ -447,54 +447,57 @@ export const KYCVerificationSection: React.FC<KYCVerificationSectionProps> = ({
       )}
 
       {/* ADMIN & EVALUATOR SANDBOX DEMO TOOLS */}
-      <div className="kyc-sandbox-tools">
-        <div className="kyc-sandbox-title">
-          <Sparkles size={14} />
-          Evaluator Sandbox: Fast-Track Simulation
+      {/* Evaluator Sandbox Simulation Tools (Dev Only) */}
+      {import.meta.env.VITE_ENABLE_DEMO === 'true' && (
+        <div className="kyc-sandbox-tools">
+          <div className="kyc-sandbox-title">
+            <Sparkles size={14} />
+            Evaluator Sandbox: Fast-Track Simulation
+          </div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.8rem' }}>
+            Test the different student verification states instantly without waiting for manual admin evaluation:
+          </p>
+          <div className="kyc-sandbox-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+              onClick={() => handleSimulateReview('verified')}
+            >
+              <ShieldCheck size={15} />
+              Simulate: Approve KYC (Verified)
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem', color: 'var(--accent-rose)' }}
+              onClick={() => handleSimulateReview('rejected')}
+            >
+              <AlertTriangle size={15} />
+              Simulate: Reject KYC (Needs Fix)
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+              onClick={() => {
+                authService.updateProfile(user.id, {
+                  kyc: {
+                    ...user.kyc,
+                    status: 'unverified',
+                    docNumber: '',
+                    verifiedAt: undefined,
+                    rejectionReason: undefined
+                  }
+                }).then(onUserUpdated);
+              }}
+            >
+              <RefreshCw size={14} />
+              Reset to Unverified
+            </button>
+          </div>
         </div>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.8rem' }}>
-          Test the different student verification states instantly without waiting for manual admin evaluation:
-        </p>
-        <div className="kyc-sandbox-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
-            onClick={() => handleSimulateReview('verified')}
-          >
-            <ShieldCheck size={15} />
-            Simulate: Approve KYC (Verified)
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem', color: 'var(--accent-rose)' }}
-            onClick={() => handleSimulateReview('rejected')}
-          >
-            <AlertTriangle size={15} />
-            Simulate: Reject KYC (Needs Fix)
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
-            onClick={() => {
-              authService.updateProfile(user.id, {
-                kyc: {
-                  ...user.kyc,
-                  status: 'unverified',
-                  docNumber: '',
-                  verifiedAt: undefined,
-                  rejectionReason: undefined
-                }
-              }).then(onUserUpdated);
-            }}
-          >
-            <RefreshCw size={14} />
-            Reset to Unverified
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

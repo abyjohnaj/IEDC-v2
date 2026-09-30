@@ -35,7 +35,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
 
-    const success = await submitRegistration({
+    const res = await submitRegistration({
       type: isIdeaSubmission ? 'Idea' : 'Event',
       eventName: eventName || null,
       fullName,
@@ -49,8 +49,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     setIsSubmitting(false);
     onClose();
 
-    if (success) {
-      onSuccess(`✅ Success! Your ${isIdeaSubmission ? 'Startup Idea' : 'Event Registration'} has been submitted.`);
+    if (res.success) {
+      const tokenNote = res.confirmationToken ? ` Ref Code: ${res.confirmationToken}` : '';
+      onSuccess(`✅ Success! Your ${isIdeaSubmission ? 'Startup Idea' : 'Event Registration'} has been submitted.${tokenNote}`);
     } else {
       onSuccess(`Saved locally. Your ${isIdeaSubmission ? 'Startup Idea' : 'Registration'} is recorded.`);
     }

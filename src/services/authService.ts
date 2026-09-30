@@ -479,10 +479,11 @@ export const authService = {
   // Login: checks Supabase first, falls back smoothly to local DB
   async login(email: string, password?: string): Promise<{ success: boolean; user?: User; error?: string }> {
     const cleanEmail = email.trim().toLowerCase();
+    const isDemoEnabled = import.meta.env.VITE_ENABLE_DEMO === 'true';
 
-    // Check if it's one of the instant demo shortcuts
+    // Check if it's one of the instant demo shortcuts (only allowed when demo mode is active)
     const localUsers = getUsersDatabase();
-    const demoUser = localUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    const demoUser = isDemoEnabled ? localUsers.find(u => u.email.toLowerCase() === cleanEmail) : undefined;
 
     const sb = getSupabase();
     if (sb && password && !demoUser) {
@@ -517,8 +518,8 @@ export const authService = {
       }
     }
 
-    // Local DB / Demo user fallback
-    if (demoUser) {
+    // Local DB / Demo user fallback (strictly blocked in production)
+    if (isDemoEnabled && demoUser) {
       demoUser.lastLoginAt = new Date().toISOString();
       const updated = localUsers.map(u => u.id === demoUser.id ? demoUser : u);
       saveUsersDatabase(updated);
@@ -526,11 +527,13 @@ export const authService = {
       return { success: true, user: demoUser };
     }
 
-    // Try finding by prefix match
-    const matched = localUsers.find(u => u.email.toLowerCase().startsWith(cleanEmail));
-    if (matched) {
-      this.setCurrentUser(matched);
-      return { success: true, user: matched };
+    // Try finding by prefix match (strictly in demo mode)
+    if (isDemoEnabled) {
+      const matched = localUsers.find(u => u.email.toLowerCase().startsWith(cleanEmail));
+      if (matched) {
+        this.setCurrentUser(matched);
+        return { success: true, user: matched };
+      }
     }
 
     return {
@@ -787,8 +790,12 @@ export const authService = {
     return updatedUser;
   },
 
-  // Admin or Demo test simulation: Approve / Reject KYC
+  // Admin or Demo test simulation: Approve / Reject KYC (Dev Only)
   async simulateKYCReview(userId: string, status: 'verified' | 'rejected', reasonOrRemarks?: string): Promise<User> {
+    if (import.meta.env.VITE_ENABLE_DEMO !== 'true') {
+      throw new Error('KYC review simulation is disabled in production.');
+    }
+
     const sb = getSupabase();
     if (sb && !userId.startsWith('usr_')) {
       try {
@@ -885,6 +892,10 @@ export const authService = {
   },
 
   quickLoginDemo(demoKey: 'rahul' | 'anjana' | 'aditya' | 'devika' | 'arun' | 'admin'): User {
+    if (import.meta.env.VITE_ENABLE_DEMO !== 'true') {
+      throw new Error('Demo instant logins are disabled in this environment.');
+    }
+
     const emailMap: Record<string, string> = {
       rahul: 'rahul@bmce.ac.in',
       anjana: 'anjana@bmce.ac.in',

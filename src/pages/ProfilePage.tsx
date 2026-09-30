@@ -337,59 +337,61 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Sandbox Persona Switcher */}
-            <div style={{
-              marginTop: '1.25rem',
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.6rem',
-              fontSize: '0.8rem'
-            }}>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
-                ⚡ Test Roles & Persona Sandbox:
-              </span>
-              <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => { authService.quickLoginDemo('rahul'); showToast('Switched to Rahul (Verified Innovator)'); }}
-                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(6, 182, 212, 0.25)', cursor: 'pointer' }}
-                >
-                  Innovator (Rahul)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { authService.quickLoginDemo('devika'); showToast('Switched to Devika (Execom Lead)'); }}
-                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)', cursor: 'pointer' }}
-                >
-                  Execom Lead (Devika)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { authService.quickLoginDemo('arun'); showToast('Switched to Arun (External Hackathon Participant)'); }}
-                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.1)', color: '#a78bfa', border: '1px solid rgba(139, 92, 246, 0.25)', cursor: 'pointer' }}
-                >
-                  External Hacker (Arun - TKM)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { authService.quickLoginDemo('admin'); showToast('Switched to Dr. Preetha (Nodal Officer / Admin)'); }}
-                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.25)', cursor: 'pointer' }}
-                >
-                  Admin (Dr. Preetha)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { authService.quickLoginDemo('aditya'); showToast('Switched to Aditya (Unverified Student)'); }}
-                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(148, 163, 184, 0.1)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
-                >
-                  Unverified Student (Aditya)
-                </button>
+            {/* Quick Sandbox Persona Switcher (Development Only) */}
+            {import.meta.env.VITE_ENABLE_DEMO === 'true' && (
+              <div style={{
+                marginTop: '1.25rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.6rem',
+                fontSize: '0.8rem'
+              }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                  ⚡ Test Roles & Persona Sandbox:
+                </span>
+                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => { authService.quickLoginDemo('rahul'); showToast('Switched to Rahul (Verified Innovator)'); }}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(6, 182, 212, 0.25)', cursor: 'pointer' }}
+                  >
+                    Innovator (Rahul)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { authService.quickLoginDemo('devika'); showToast('Switched to Devika (Execom Lead)'); }}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)', cursor: 'pointer' }}
+                  >
+                    Execom Lead (Devika)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { authService.quickLoginDemo('arun'); showToast('Switched to Arun (External Hackathon Participant)'); }}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.1)', color: '#a78bfa', border: '1px solid rgba(139, 92, 246, 0.25)', cursor: 'pointer' }}
+                  >
+                    External Hacker (Arun - TKM)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { authService.quickLoginDemo('admin'); showToast('Switched to Dr. Preetha (Nodal Officer / Admin)'); }}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.25)', cursor: 'pointer' }}
+                  >
+                    Admin (Dr. Preetha)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { authService.quickLoginDemo('aditya'); showToast('Switched to Aditya (Unverified Student)'); }}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: '0.74rem', borderRadius: '4px', background: 'rgba(148, 163, 184, 0.1)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                  >
+                    Unverified Student (Aditya)
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* =========================================================

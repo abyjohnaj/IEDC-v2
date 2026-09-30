@@ -254,7 +254,38 @@ export const ideaBoxService = {
     return newIdea;
   },
 
+  /**
+   * Toggles an upvote on a startup pitch.
+   * 
+   * NOTE (v3 Security Baseline): Direct table updates to `upvotes` or `upvoters` are
+   * blocked by the database trigger `trg_ideabox_guard`. We invoke the atomic
+   * SECURITY DEFINER RPC `upvote_idea` which safely handles user identity,
+   * prevents double-voting, and sets the transient transaction flag `iedc.rpc_voting`.
+   */
   async toggleUpvote(ideaId: string, userId: string): Promise<{ upvotes: number; userHasUpvoted: boolean }> {
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.rpc('upvote_idea', { p_idea_id: ideaId });
+        if (!error && data) {
+          const ideas = getStoredIdeas();
+          const index = ideas.findIndex(i => i.id === ideaId);
+          if (index !== -1) {
+            ideas[index].upvotes = data.upvotes;
+            if (data.hasVoted) {
+              if (!ideas[index].upvoters.includes(userId)) ideas[index].upvoters.push(userId);
+            } else {
+              ideas[index].upvoters = ideas[index].upvoters.filter(id => id !== userId);
+            }
+            saveIdeas(ideas);
+          }
+          return { upvotes: data.upvotes, userHasUpvoted: data.hasVoted };
+        }
+      } catch (err) {
+        console.warn('Supabase upvote_idea error, using local fallback:', err);
+      }
+    }
+
     const ideas = getStoredIdeas();
     const index = ideas.findIndex(i => i.id === ideaId);
     if (index === -1) return { upvotes: 0, userHasUpvoted: false };

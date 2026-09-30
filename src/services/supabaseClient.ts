@@ -3,8 +3,8 @@ import { ForumDiscussion, RegistrationSubmission, EventItem } from '../types';
 import { initialForumDiscussions } from '../data/forumData';
 import { initialEventsData } from '../data/eventsData';
 
-const SUPABASE_URL = 'https://quxwzqcbuksxxgpprztw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1eHd6cWNidWtzeHhncHByenR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MDY4NDUsImV4cCI6MjEwNDk4Mjg0NX0.P_NWWDiY8yWgmYpSq2ExWhjNad872EwsZGo7td20DLs';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://quxwzqcbuksxxgpprztw.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1eHd6cWNidWtzeHhncHByenR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MDY4NDUsImV4cCI6MjEwNDk4Mjg0NX0.P_NWWDiY8yWgmYpSq2ExWhjNad872EwsZGo7td20DLs';
 
 let supabase: SupabaseClient | null = null;
 
@@ -229,7 +229,8 @@ export async function deleteDiscussion(discussionId: string): Promise<boolean> {
 // Registrations & Startup Pitches Operations
 // ==========================================
 
-export async function submitRegistration(reg: RegistrationSubmission): Promise<boolean> {
+export async function submitRegistration(reg: RegistrationSubmission): Promise<{ success: boolean; confirmationToken?: string }> {
+  const confirmationToken = `BMCE-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
   const sb = getSupabase();
   if (sb) {
     try {
@@ -242,9 +243,10 @@ export async function submitRegistration(reg: RegistrationSubmission): Promise<b
         department: reg.department,
         semester: reg.semester,
         overview_reason: reg.overviewReason,
-        status: 'Pending'
+        status: 'Pending',
+        confirmation_token: confirmationToken
       }]);
-      if (!error) return true;
+      if (!error) return { success: true, confirmationToken };
     } catch (err) {
       console.warn('Supabase submit registration error:', err);
     }
@@ -260,7 +262,22 @@ export async function submitRegistration(reg: RegistrationSubmission): Promise<b
     created_at: new Date().toISOString()
   });
   localStorage.setItem('iedc_registrations_store', JSON.stringify(list));
-  return true;
+  return { success: true, confirmationToken };
+}
+
+export async function getRegistrationStatus(token: string): Promise<{ eventName: string; status: string; createdAt: string; attendeeMasked: string } | null> {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data, error } = await sb.rpc('get_registration_status', { p_token: token });
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('Supabase get registration status error:', err);
+    }
+  }
+  return null;
 }
 
 export async function fetchRegistrations(): Promise<RegistrationSubmission[]> {
@@ -641,18 +658,28 @@ export async function updateAdminKYCStatus(
   const sb = getSupabase();
   if (sb && !userId.startsWith('usr_')) {
     try {
-      await sb
-        .from('kyc_verifications')
-        .update({
-          status,
-          verified_at: status === 'verified' ? new Date().toISOString() : null,
-          rejection_reason: status === 'rejected' ? (remarks || 'Document verification failed.') : null,
-          admin_remarks: remarks || (status === 'verified' ? 'Approved by BMCE IEDC Nodal Center.' : 'Administrative review note.')
-        })
-        .eq('user_id', userId);
+      // First attempt privileged SECURITY DEFINER RPC
+      const { error: rpcError } = await sb.rpc('admin_review_kyc', {
+        p_target_user_id: userId,
+        p_new_status: status,
+        p_remarks: remarks || (status === 'verified' ? 'Approved by BMCE IEDC Nodal Center.' : 'Administrative review note.')
+      });
 
-      if (status === 'verified') {
-        await sb.from('profiles').update({ role: 'Innovator' }).eq('id', userId);
+      if (rpcError) {
+        // Fallback for tables prior to RPC migration
+        await sb
+          .from('kyc_verifications')
+          .update({
+            status,
+            verified_at: status === 'verified' ? new Date().toISOString() : null,
+            rejection_reason: status === 'rejected' ? (remarks || 'Document verification failed.') : null,
+            admin_remarks: remarks || (status === 'verified' ? 'Approved by BMCE IEDC Nodal Center.' : 'Administrative review note.')
+          })
+          .eq('user_id', userId);
+
+        if (status === 'verified') {
+          await sb.from('profiles').update({ role: 'Innovator' }).eq('id', userId);
+        }
       }
     } catch (err) {
       console.warn('Supabase update KYC status error:', err);

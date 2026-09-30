@@ -172,7 +172,10 @@ export const AdminPage: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    const isDemoEnabled = import.meta.env.VITE_ENABLE_DEMO === 'true';
+
     if (
+      isDemoEnabled &&
       (email.toLowerCase() === 'admin@iedcbmce.in' || email.toLowerCase() === 'admin') &&
       password === 'admin123'
     ) {
@@ -181,7 +184,11 @@ export const AdminPage: React.FC = () => {
       setAuthError('');
       loadAdminData();
     } else {
-      setAuthError('Invalid administrator credentials. Use demo: admin@iedcbmce.in / admin123');
+      setAuthError(
+        isDemoEnabled
+          ? 'Invalid administrator credentials. Use demo: admin@iedcbmce.in / admin123'
+          : 'Invalid administrator credentials or unauthorized account.'
+      );
     }
   };
 
