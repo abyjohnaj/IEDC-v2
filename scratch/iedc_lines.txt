@@ -1,0 +1,37 @@
+Line 79610: L(a){var s=null,r=t.w,q=A.be(a,s,r).w.a.a,p=A.aro(255,255,255,this.d),o=t.p,n=A.d3(A.cY(A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",s,s,s),s),B.Cn],o),B.t,B.p,B.q,0),s,100),m=A.c([],o)
+Line 79684: else B.b.R(q,A.c([A.cY(A.c([A.ck(B.EX,B.W,B.p,B.q),B.NG,A.ck(A.c([B.B_,A.d3(s,10,s),A.bG("Prof. Manoj Kumar",s,s,A.eM(s,s,B.ac,s,s,s,s,s,s,s,s,18,s,s,B.aa,s,s,!0,s,s,s,s,s,s,s,s),s),A.d3(s,6,s),A.bG("Nodal Officer, IEDC BMCE",s,s,A.eM(s,s,B.z,s,s,s,s,s,s,s,s,14,s,s,s,s,s,!0,s,s,s,s,s,s,s,s),s),A.d3(
+Line 79699: return new A.yR(B.ak,"IEDC Web",A.uh(s,s,B.ek,s),!1,s)}}
+Line 79705: return A.e2(q,A.avH(A.c([m,l,A.oh(A.ck(A.c([B.SE,B.hD,A.bG("Innovation and Entrepreneurship Development Centre (IEDC) at Baselios Mathews II College of Engineering aims to foster a culture of innovation and entrepreneurship among students. We support ideation, incubation, and real-world problem solv
+Line 79717: L(a){var s,r=this,q=null,p=A.be(a,q,t.w).w.a.a,o=t.p,n=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",q,q,q),q)],o)
+Line 79842: m=A.c([new A.cm(new A.aR(m,0,m,0),A.f1("assets/IEDC  LOGO.png",p,40,p),p)],l)
+Line 79952: L(a){var s,r,q=this,p=null,o=A.be(a,p,t.w).w.a.a,n=t.p,m=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",p,p,p),p)],n),l=o>600
+Line 80030: L(a){var s,r=this,q=null,p=A.be(a,q,t.w).w.a.a,o=t.p,n=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",q,q,q),q)],o)
+Line 80101: L(a){var s,r=this,q=null,p=A.be(a,q,t.w).w.a.a,o=t.p,n=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",q,q,q),q)],o),m=p>600
+Line 80167: q=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",m,m,m),m)],r)
+Line 80245: L(a){var s,r,q,p=this,o=null,n=A.be(a,o,t.w).w.a.a,m=t.p,l=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",o,o,o),o)],m),k=n>600
+Line 80254: s=A.bG("Nodal Officers",o,o,A.eM(o,o,B.ac,o,o,o,o,o,"Anton",o,o,r?32:22,o,o,o,o,o,!0,o,o,o,o,o,o,o,o),o)
+Line 80256: return A.kV(l,B.l,A.tZ(A.ck(A.c([s,B.cH,q,B.NJ,A.bG("IEDC Department Co-ordinators",o,o,A.eM(o,o,B.ac,o,o,o,o,o,"Anton",o,o,r?32:22,o,o,o,o,o,!0,o,o,o,o,o,o,o,o),o),B.cH,p.aas(B.FS)],m),B.t,B.p,B.q),new A.aR(k,k,k,k)),!1)},
+Line 80299: L(a){var s=null,r=t.N,q=A.c([A.ao(["title","DESIGN THINKING WORKSHOP","description","An immersive experience to rethink problems, unlock creativity, and build impactful solutions.","date","Feb 06, 2026","assetImage","assets/eventposters/designthinking.jpeg"],r,r),A.ao(["title","IDEA FORGE","descript
+Line 80323: L(a){var s,r,q=this,p=null,o=A.be(a,p,t.w).w.a.a,n=t.p,m=A.c([new A.cm(B.b1,A.f1("assets/IEDC  LOGO.png",p,p,p),p)],n),l=o>600
+Line 84612: var u={S:"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\u03f6\x00\u0404\u03f4 \u03f4\u03f6\u01f6\u01f6\u03f6\u03fc\u01f4\u03ff\u03ff\u0584\u03ff\u03ff\u03ff\u03ff\u03ff\u03ff\u03ff\u03ff\u03ff\u03ff\u05d4\u01f4\x0
+Line 84643: B.Sz=new A.bm("\xa9 2025 IEDC BMCE | All Rights Reserved",null,B.Pl,B.aE,null,null,null,null)
+Line 85101: B.St=new A.bm("IEDC",null,B.R9,null,null,null,null,null)
+Line 85103: B.SI=new A.bm("Innovation and Entrepreneurship",null,B.hJ,null,null,null,null,null)
+Line 85104: B.kM=new A.bm("Development Centre, BMCE",null,B.hJ,null,null,null,null,null)
+Line 85108: B.yy=new A.bm("IEDC",null,B.Ra,null,null,null,null,null)
+Line 85109: B.SJ=new A.bm("Innovation and Entreprenuership",null,B.hJ,null,null,null,null,null)
+Line 85114: B.SU=new A.bm("IEDC BMCE",null,B.PS,null,null,null,null,null)
+Line 85117: B.T2=new A.bm("Innovation and Entrepreneurship Development Centre,\nBaselios Mathews II College of Engineering\nLake View, Muthupilakkadu, Sasthamcotta - 690520\nEmail id: iedciicbmce@gmail.com",null,B.RW,null,!0,null,null,null)
+Line 85641: B.SQ=new A.bm("IEDC BMCE nurtures innovation and entrepreneurship by providing incubation support for student-led startups and aspiring entrepreneurs. Our incubation facilities create a vibrant ecosystem where ideas are transformed into impactful solutions with the support of mentorship, resources, 
+Line 85652: B.Jw=new A.hG("assets/sreekanthsir.jpeg","Dr. Sreekanth S.","Nodal Officer",null)
+Line 85653: B.Jz=new A.hG("assets/sitharamiss.JPG","Dr. Sithara Gopinath","Nodal Officer",null)
+Line 85654: B.Ju=new A.hG("assets/sreekumarsir.PNG","Prof. Sreekumar Pillai","Nodal Officer",null)
+Line 85700: B.SX=new A.bm("Innovation and Entreprenuership ",null,B.hJ,null,null,null,null,null)
+Line 86740: B.T_=new A.bm("Eureka is the recurring publication of IEDC BMCE, designed to keep our community inspired and connected. Each edition captures the spirit of innovation happening on campus \nand beyond.",null,B.kI,B.cd,null,null,null,null)
+Line 87372: B.SB=new A.bm("Eureka \u2013 The Official IEDC BMCE Newsletter",null,B.Pt,null,null,null,null,null)
+Line 87374: B.SC=new A.bm("Innovation and Entrepreneurship Development Centre,\nBaselios Mathews II College of Engineering (BMCE),\nLake View, Muthupilakkadu, Sasthamcotta,\nKollam, Kerala \u2013 690521, India.",null,B.PO,null,null,null,null,null)
+Line 87376: B.SE=new A.bm("About IEDC",null,B.yv,null,null,null,null,null)
+Line 87384: B.SO=new A.bm("Nodal Officer, IEDC BMCE",null,B.Pa,B.aE,null,null,null,null)
+Line 87389: B.SV=new A.bm("At IEDC BMCE",null,B.OT,B.aE,null,null,null,null)
+Line 87393: B.T0=new A.bm("Nodal Officers",null,B.kH,null,null,null,null,null)
+Line 87792: return A.ao(["Eureka - Jan 2025","https://drive.google.com/file/d/13no5SZQYDedneQpACfbn5kVUEQdsvB2C/view?usp=sharing"],s,s)}()

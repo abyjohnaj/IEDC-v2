@@ -1,0 +1,1295 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Navbar } from '../components/Navigation/Navbar';
+import { Footer } from '../components/Navigation/Footer';
+import { hackathonService } from '../services/hackathonService';
+import { authService, openAuthModal } from '../services/authService';
+import {
+  HackathonEvent,
+  HackathonTeam,
+  HackathonRole,
+  TeamChatMessage,
+  ProjectSubmission,
+  User
+} from '../types';
+import {
+  Users,
+  Flame,
+  Clock,
+  MessageSquare,
+  Share2,
+  ExternalLink,
+  Plus,
+  Shield,
+  CheckCircle,
+  Copy,
+  Check,
+  Send,
+  Code2,
+  Award,
+  Video,
+  FileText,
+  Github,
+  Globe,
+  Star,
+  Settings,
+  UserPlus,
+  X,
+  Filter,
+  Search,
+  MessageCircle,
+  Hash
+} from 'lucide-react';
+import '../styles/hackathon.css';
+
+const AVAILABLE_ROLES: HackathonRole[] = [
+  'Team Lead',
+  'Frontend Dev',
+  'Backend Dev',
+  'AI / ML Engineer',
+  'UI / UX Designer',
+  'Hardware / IoT',
+  'Pitch Presenter',
+  'Fullstack Dev'
+];
+
+export const HackathonPortalPage: React.FC = () => {
+  const [user, setUser] = useState<User | null>(authService.getCurrentUser());
+  const [hackathon, setHackathon] = useState<HackathonEvent>(hackathonService.getActiveHackathon());
+  const [teams, setTeams] = useState<HackathonTeam[]>([]);
+  const [activeTab, setActiveTab] = useState<'directory' | 'my-team' | 'create-team'>('directory');
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  // Filters for Team Directory
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTrack, setSelectedTrack] = useState('All Tracks');
+  const [onlyOpenTeams, setOnlyOpenTeams] = useState(false);
+  const [roleFilter, setRoleFilter] = useState('All Roles');
+
+  // Countdown timer state
+  const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
+    hours: 28,
+    minutes: 42,
+    seconds: 15
+  });
+
+  // Team Workspace Tab state
+  const [workspaceTab, setWorkspaceTab] = useState<'chat' | 'roster' | 'submission' | 'settings'>('chat');
+  const [chatMessages, setChatMessages] = useState<TeamChatMessage[]>([]);
+  const [newChatText, setNewChatText] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Modals & Actions
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [joinTargetTeam, setJoinTargetTeam] = useState<HackathonTeam | null>(null);
+  const [joinRequestedRole, setJoinRequestedRole] = useState<HackathonRole>('Frontend Dev');
+  const [joinNote, setJoinNote] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Create Team Form State
+  const [teamName, setTeamName] = useState('');
+  const [teamTagline, setTeamTagline] = useState('');
+  const [teamTrack, setTeamTrack] = useState(hackathon.tracks[0] || 'Generative AI & LLMs');
+  const [teamIsOpen, setTeamIsOpen] = useState(true);
+  const [selectedSeekingRoles, setSelectedSeekingRoles] = useState<HackathonRole[]>(['Frontend Dev', 'UI / UX Designer']);
+  const [teamDiscordUrl, setTeamDiscordUrl] = useState('');
+  const [teamWhatsappUrl, setTeamWhatsappUrl] = useState('');
+  const [myLeaderRole, setMyLeaderRole] = useState<HackathonRole>('Team Lead');
+
+  // Project Submission Form State inside Workspace
+  const [submissionTitle, setSubmissionTitle] = useState('');
+  const [submissionTagline, setSubmissionTagline] = useState('');
+  const [submissionOverview, setSubmissionOverview] = useState('');
+  const [submissionTechStack, setSubmissionTechStack] = useState('');
+  const [submissionGithub, setSubmissionGithub] = useState('');
+  const [submissionDemoVideo, setSubmissionDemoVideo] = useState('');
+  const [submissionLiveDemo, setSubmissionLiveDemo] = useState('');
+  const [submissionPitchDeck, setSubmissionPitchDeck] = useState('');
+  const [savingSubmission, setSavingSubmission] = useState(false);
+
+  // Load teams and current user's team
+  const refreshTeams = () => {
+    const all = hackathonService.getAllTeams(hackathon.id);
+    setTeams(all);
+
+    // If user has a team, select it automatically
+    if (user) {
+      const myTeam = hackathonService.getUserTeam(user.id, hackathon.id);
+      if (myTeam && !selectedTeamId) {
+        setSelectedTeamId(myTeam.id);
+      }
+    }
+  };
+
+  useEffect(() => {
+    refreshTeams();
+
+    const unsubAuth = authService.onAuthStateChange(u => {
+      setUser(u);
+      refreshTeams();
+    });
+
+    const unsubTeams = hackathonService.subscribeTeams(() => refreshTeams());
+
+    return () => {
+      unsubAuth();
+      unsubTeams();
+    };
+  }, [hackathon.id]);
+
+  // Real-time Countdown Timer
+  useEffect(() => {
+    const end = new Date(hackathon.endDate).getTime();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = Math.max(0, end - now);
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ hours, minutes, seconds });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [hackathon.endDate]);
+
+  // Load chat messages when active team changes
+  const activeTeam = teams.find(t => t.id === selectedTeamId) || teams[0];
+
+  useEffect(() => {
+    if (activeTeam) {
+      setChatMessages(hackathonService.getTeamChatMessages(activeTeam.id));
+
+      // populate submission form if exists
+      if (activeTeam.projectSubmission) {
+        const sub = activeTeam.projectSubmission;
+        setSubmissionTitle(sub.projectTitle || '');
+        setSubmissionTagline(sub.tagline || '');
+        setSubmissionOverview(sub.overview || '');
+        setSubmissionTechStack(sub.techStack?.join(', ') || '');
+        setSubmissionGithub(sub.githubUrl || '');
+        setSubmissionDemoVideo(sub.demoVideoUrl || '');
+        setSubmissionLiveDemo(sub.liveDemoUrl || '');
+        setSubmissionPitchDeck(sub.pitchDeckUrl || '');
+      }
+    }
+
+    const unsubChat = hackathonService.subscribeChat(teamId => {
+      if (activeTeam && teamId === activeTeam.id) {
+        setChatMessages(hackathonService.getTeamChatMessages(teamId));
+      }
+    });
+
+    return () => unsubChat();
+  }, [activeTeam?.id]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleCopyInviteCode = () => {
+    if (!activeTeam) return;
+    navigator.clipboard.writeText(activeTeam.inviteCode);
+    setCopiedCode(true);
+    showToast(`Invite code "${activeTeam.inviteCode}" copied to clipboard!`);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChatText.trim() || !activeTeam) return;
+
+    if (!user) {
+      openAuthModal('login');
+      return;
+    }
+
+    const member = activeTeam.members.find(m => m.userId === user.id);
+    const roleName = member?.roleInTeam || user.role;
+
+    hackathonService.sendTeamChatMessage(activeTeam.id, {
+      senderId: user.id,
+      senderName: user.fullName,
+      senderAvatar: user.avatar,
+      senderRole: roleName,
+      text: newChatText.trim()
+    });
+
+    setNewChatText('');
+  };
+
+  const handleCreateTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      openAuthModal('signup');
+      return;
+    }
+
+    if (!teamName.trim() || !teamTagline.trim()) {
+      alert('Please fill in Team Name and Tagline.');
+      return;
+    }
+
+    const created = hackathonService.createTeam({
+      hackathonId: hackathon.id,
+      hackathonTitle: hackathon.title,
+      name: teamName.trim(),
+      tagline: teamTagline.trim(),
+      track: teamTrack,
+      isOpen: teamIsOpen,
+      rolesNeeded: selectedSeekingRoles,
+      leader: user,
+      leaderRole: myLeaderRole,
+      discordInviteUrl: teamDiscordUrl.trim() || undefined,
+      whatsappGroupUrl: teamWhatsappUrl.trim() || undefined
+    });
+
+    setSelectedTeamId(created.id);
+    setActiveTab('my-team');
+    showToast(`Squad "${created.name}" created! Welcome to your Lablab Workspace!`);
+    refreshTeams();
+  };
+
+  const handleOpenJoinModal = (team: HackathonTeam) => {
+    if (!user) {
+      openAuthModal('login');
+      return;
+    }
+    setJoinTargetTeam(team);
+    setJoinRequestedRole(team.rolesNeeded[0] || 'Frontend Dev');
+    setIsJoinModalOpen(true);
+  };
+
+  const handleConfirmJoin = async () => {
+    if (!user || !joinTargetTeam) return;
+
+    const res = await hackathonService.joinTeam(
+      joinTargetTeam.id,
+      user,
+      joinRequestedRole,
+      joinNote
+    );
+
+    setIsJoinModalOpen(false);
+    if (res.joined) {
+      setSelectedTeamId(joinTargetTeam.id);
+      setActiveTab('my-team');
+      showToast(`Joined team "${joinTargetTeam.name}" successfully! Welcome aboard!`);
+    } else if (res.pending) {
+      showToast(`Join request submitted to team leader for review!`);
+    } else if (res.error) {
+      alert(res.error);
+    }
+    refreshTeams();
+  };
+
+  const handleRespondRequest = async (requestId: string, decision: 'accepted' | 'declined') => {
+    if (!activeTeam) return;
+    await hackathonService.respondToJoinRequest(activeTeam.id, requestId, decision);
+    showToast(`Request ${decision === 'accepted' ? 'accepted! Member added to roster' : 'declined'}.`);
+    refreshTeams();
+  };
+
+  const handleRoleChange = async (memberUserId: string, newRole: HackathonRole) => {
+    if (!activeTeam) return;
+    await hackathonService.assignMemberRole(activeTeam.id, memberUserId, newRole);
+    showToast('Member role assigned successfully!');
+    refreshTeams();
+  };
+
+  const handleSaveSubmission = async (status: 'draft' | 'submitted') => {
+    if (!activeTeam) return;
+
+    if (status === 'submitted' && (!submissionTitle.trim() || !submissionGithub.trim())) {
+      alert('Project Title and GitHub Repository URL are required to submit to jury.');
+      return;
+    }
+
+    setSavingSubmission(true);
+    try {
+      const techArr = submissionTechStack.split(',').map(s => s.trim()).filter(Boolean);
+
+      const sub: ProjectSubmission = {
+        projectTitle: submissionTitle.trim() || activeTeam.name,
+        tagline: submissionTagline.trim() || activeTeam.tagline,
+        track: activeTeam.track,
+        overview: submissionOverview.trim(),
+        techStack: techArr,
+        githubUrl: submissionGithub.trim(),
+        demoVideoUrl: submissionDemoVideo.trim() || undefined,
+        liveDemoUrl: submissionLiveDemo.trim() || undefined,
+        pitchDeckUrl: submissionPitchDeck.trim() || undefined,
+        status
+      };
+
+      await hackathonService.saveProjectSubmission(activeTeam.id, sub);
+      showToast(status === 'submitted' ? 'Project finalized & submitted to Hackathon Jury!' : 'Draft saved successfully!');
+      refreshTeams();
+    } catch (err: any) {
+      alert(err.message || 'Error saving project');
+    } finally {
+      setSavingSubmission(false);
+    }
+  };
+
+  // Filtered teams list
+  const filteredTeams = teams.filter(t => {
+    const matchTrack = selectedTrack === 'All Tracks' || t.track === selectedTrack;
+    const matchOpen = !onlyOpenTeams || t.isOpen;
+    const matchRole = roleFilter === 'All Roles' || t.rolesNeeded.includes(roleFilter as HackathonRole);
+    const q = searchQuery.toLowerCase().trim();
+    const matchQuery =
+      !q ||
+      t.name.toLowerCase().includes(q) ||
+      t.tagline.toLowerCase().includes(q) ||
+      t.members.some(m => m.name.toLowerCase().includes(q));
+
+    return matchTrack && matchOpen && matchRole && matchQuery;
+  });
+
+  const isLeaderOfActiveTeam = user && activeTeam && activeTeam.members.find(m => m.userId === user.id)?.isLeader;
+  const isMemberOfActiveTeam = user && activeTeam && activeTeam.members.some(m => m.userId === user.id);
+
+  return (
+    <div className="hackathon-page-root">
+      <Navbar />
+
+      {/* Hero Banner with Live Countdown */}
+      <section className="hackathon-banner">
+        <div className="container hackathon-banner-inner">
+          <div className="hackathon-live-badge">
+            <span className="live-pulse-dot" />
+            <span>HACKATHON SPRINT LIVE</span>
+          </div>
+
+          <h1 className="hackathon-banner-title">{hackathon.title}</h1>
+          <p className="hackathon-banner-sub">{hackathon.subtitle}</p>
+
+          {/* Countdown & Key Stats Box */}
+          <div className="hackathon-timer-card">
+            <div className="hackathon-timer-col">
+              <span className="timer-label">Programme Ends In:</span>
+              <div className="timer-digits-row">
+                <div className="timer-digit-box">
+                  <span className="digit-val">{String(timeLeft.hours).padStart(2, '0')}</span>
+                  <span className="digit-unit">Hours</span>
+                </div>
+                <span className="timer-sep">:</span>
+                <div className="timer-digit-box">
+                  <span className="digit-val">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                  <span className="digit-unit">Mins</span>
+                </div>
+                <span className="timer-sep">:</span>
+                <div className="timer-digit-box">
+                  <span className="digit-val">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                  <span className="digit-unit">Secs</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="timer-stats-divider" />
+
+            <div className="hackathon-stat-capsules">
+              <div className="capsule-item">
+                <span className="capsule-val">{teams.length}</span>
+                <span className="capsule-txt">Active Teams</span>
+              </div>
+              <div className="capsule-item">
+                <span className="capsule-val">
+                  {teams.reduce((acc, t) => acc + t.members.length, 0)}
+                </span>
+                <span className="capsule-txt">Hackers Building</span>
+              </div>
+              <div className="capsule-item">
+                <span className="capsule-val">{hackathon.prizePool}</span>
+                <span className="capsule-txt">Prize & Grants</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Top Navigation Tabs (Lablab Style) */}
+          <div className="hackathon-nav-tabs">
+            <button
+              className={`hackathon-nav-btn ${activeTab === 'directory' ? 'active' : ''}`}
+              onClick={() => setActiveTab('directory')}
+            >
+              <Users size={16} />
+              <span>Explore Teams & Open Squads ({teams.length})</span>
+            </button>
+
+            <button
+              className={`hackathon-nav-btn ${activeTab === 'my-team' ? 'active' : ''}`}
+              onClick={() => setActiveTab('my-team')}
+            >
+              <Code2 size={16} />
+              <span>
+                {activeTeam ? `Team Workspace: ${activeTeam.name}` : 'My Team Workspace'}
+              </span>
+            </button>
+
+            <button
+              className={`hackathon-nav-btn ${activeTab === 'create-team' ? 'active' : ''}`}
+              onClick={() => {
+                if (!user) openAuthModal('signup');
+                else setActiveTab('create-team');
+              }}
+            >
+              <Plus size={16} />
+              <span>Form New Hackathon Squad</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* TAB 1: EXPLORE TEAMS DIRECTORY */}
+      {activeTab === 'directory' && (
+        <section className="container hackathon-section">
+          {/* Filter Bar */}
+          <div className="hackathon-filter-bar">
+            <div className="hackathon-search-box">
+              <Search size={18} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search teams by name, project tagline, or teammate..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="hackathon-search-input"
+              />
+            </div>
+
+            <div className="filter-dropdowns">
+              <select
+                className="hackathon-select"
+                value={selectedTrack}
+                onChange={e => setSelectedTrack(e.target.value)}
+              >
+                <option value="All Tracks">All Tracks</option>
+                {hackathon.tracks.map(tr => (
+                  <option key={tr} value={tr}>{tr}</option>
+                ))}
+              </select>
+
+              <select
+                className="hackathon-select"
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+              >
+                <option value="All Roles">Roles Needed (All)</option>
+                {AVAILABLE_ROLES.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={onlyOpenTeams}
+                  onChange={e => setOnlyOpenTeams(e.target.checked)}
+                />
+                <span>Open for Joining</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Teams Grid */}
+          <div className="hackathon-teams-grid">
+            {filteredTeams.map(team => {
+              const isFull = team.members.length >= team.maxMembers;
+              const userInTeam = user && team.members.some(m => m.userId === user.id);
+
+              return (
+                <div key={team.id} className="team-card">
+                  <div className="team-card-top">
+                    <span className="track-badge">{team.track}</span>
+                    <span className={`open-badge ${team.isOpen && !isFull ? 'open' : 'closed'}`}>
+                      {isFull ? 'Team Full (4/4)' : team.isOpen ? 'Open Team' : 'Invite Only'}
+                    </span>
+                  </div>
+
+                  <h3 className="team-card-name">{team.name}</h3>
+                  <p className="team-card-tagline">{team.tagline}</p>
+
+                  {/* Seeking Roles Pills */}
+                  {team.rolesNeeded.length > 0 && !isFull && (
+                    <div className="seeking-roles-box">
+                      <span className="seeking-title">Seeking:</span>
+                      <div className="seeking-chips">
+                        {team.rolesNeeded.map((r, i) => (
+                          <span key={i} className="seeking-chip">{r}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Members Roster Preview */}
+                  <div className="team-members-row">
+                    <div className="members-avatars">
+                      {team.members.map(m => (
+                        <img
+                          key={m.userId}
+                          src={m.avatar}
+                          alt={m.name}
+                          className="member-avatar-stacked"
+                          title={`${m.name} (${m.roleInTeam})`}
+                        />
+                      ))}
+                    </div>
+                    <span className="members-count-badge">
+                      {team.members.length}/{team.maxMembers} Members
+                    </span>
+                  </div>
+
+                  {/* External Links Bar */}
+                  <div className="team-card-links">
+                    {team.discordInviteUrl && (
+                      <a
+                        href={team.discordInviteUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="social-btn discord"
+                        title="Join Team Discord"
+                      >
+                        <MessageSquare size={13} /> Discord
+                      </a>
+                    )}
+                    {team.whatsappGroupUrl && (
+                      <a
+                        href={team.whatsappGroupUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="social-btn whatsapp"
+                        title="Join Team WhatsApp"
+                      >
+                        <MessageCircle size={13} /> WhatsApp
+                      </a>
+                    )}
+                    {team.githubOrgUrl && (
+                      <a
+                        href={team.githubOrgUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="social-btn github"
+                        title="View GitHub Repository"
+                      >
+                        <Github size={13} /> Repo
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="team-card-footer">
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
+                      onClick={() => {
+                        setSelectedTeamId(team.id);
+                        setActiveTab('my-team');
+                      }}
+                    >
+                      Inspect Team
+                    </button>
+
+                    {userInTeam ? (
+                      <span className="btn-in-team">
+                        <Check size={14} /> You are in this squad
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '0.45rem 1rem', fontSize: '0.8rem' }}
+                        disabled={isFull}
+                        onClick={() => handleOpenJoinModal(team)}
+                      >
+                        <UserPlus size={14} />
+                        {team.isOpen ? 'Join Open Squad' : 'Request to Join'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* TAB 2: LABLAB-STYLE TEAM WORKSPACE */}
+      {activeTab === 'my-team' && activeTeam && (
+        <section className="container hackathon-section">
+          {/* Workspace Hero Bar */}
+          <div className="workspace-hero">
+            <div className="workspace-hero-info">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <span className="track-badge">{activeTeam.track}</span>
+                <span className="invite-code-pill" onClick={handleCopyInviteCode}>
+                  Invite Code: <strong>{activeTeam.inviteCode}</strong>
+                  {copiedCode ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                </span>
+                {activeTeam.projectSubmission?.status === 'submitted' && (
+                  <span className="submission-submitted-pill">
+                    <Award size={13} /> Project Submitted
+                  </span>
+                )}
+              </div>
+
+              <h2 className="workspace-title">{activeTeam.name}</h2>
+              <p className="workspace-tagline">{activeTeam.tagline}</p>
+            </div>
+
+            {/* Quick External Group Action Buttons */}
+            <div className="workspace-social-actions">
+              {activeTeam.discordInviteUrl ? (
+                <a
+                  href={activeTeam.discordInviteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-discord"
+                >
+                  <MessageSquare size={16} /> Open Team Discord
+                </a>
+              ) : (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setWorkspaceTab('settings')}
+                >
+                  + Add Discord Link
+                </button>
+              )}
+
+              {activeTeam.whatsappGroupUrl ? (
+                <a
+                  href={activeTeam.whatsappGroupUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-whatsapp"
+                >
+                  <MessageCircle size={16} /> WhatsApp Group
+                </a>
+              ) : (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setWorkspaceTab('settings')}
+                >
+                  + Add WhatsApp Link
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Workspace Inner Navigation Tabs */}
+          <div className="workspace-tabs-bar">
+            <button
+              className={`workspace-tab-btn ${workspaceTab === 'chat' ? 'active' : ''}`}
+              onClick={() => setWorkspaceTab('chat')}
+            >
+              <MessageSquare size={16} />
+              <span>Live Team Chat</span>
+            </button>
+
+            <button
+              className={`workspace-tab-btn ${workspaceTab === 'roster' ? 'active' : ''}`}
+              onClick={() => setWorkspaceTab('roster')}
+            >
+              <Users size={16} />
+              <span>Team Roster & Roles ({activeTeam.members.length})</span>
+              {activeTeam.joinRequests.filter(r => r.status === 'pending').length > 0 && (
+                <span className="pending-badge">
+                  {activeTeam.joinRequests.filter(r => r.status === 'pending').length}
+                </span>
+              )}
+            </button>
+
+            <button
+              className={`workspace-tab-btn ${workspaceTab === 'submission' ? 'active' : ''}`}
+              onClick={() => setWorkspaceTab('submission')}
+            >
+              <Award size={16} />
+              <span>Project Submission & Evaluation</span>
+            </button>
+
+            {isLeaderOfActiveTeam && (
+              <button
+                className={`workspace-tab-btn ${workspaceTab === 'settings' ? 'active' : ''}`}
+                onClick={() => setWorkspaceTab('settings')}
+              >
+                <Settings size={16} />
+                <span>Team Settings</span>
+              </button>
+            )}
+          </div>
+
+          {/* SUBTAB 1: LIVE TEAM CHAT ROOM (Active Till Programme Ends) */}
+          {workspaceTab === 'chat' && (
+            <div className="workspace-chat-container">
+              <div className="chat-header-notice">
+                <Clock size={16} className="text-cyan" />
+                <span>
+                  Team channel is active and synchronized till hackathon sprint concludes. Coordinate code, share pins, and synchronize testing!
+                </span>
+              </div>
+
+              <div className="chat-messages-scroll">
+                {chatMessages.map(msg => (
+                  <div
+                    key={msg.id}
+                    className={`chat-bubble-row ${msg.isAnnouncement ? 'announcement' : ''} ${msg.senderId === user?.id ? 'self' : ''}`}
+                  >
+                    {!msg.isAnnouncement && (
+                      <img src={msg.senderAvatar} alt={msg.senderName} className="chat-avatar" />
+                    )}
+
+                    <div className="chat-bubble-content">
+                      <div className="chat-bubble-header">
+                        <span className="chat-sender-name">{msg.senderName}</span>
+                        <span className="chat-sender-role">{msg.senderRole}</span>
+                        <span className="chat-timestamp">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="chat-bubble-text">{msg.text}</div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat Input Bar */}
+              <form onSubmit={handleSendChat} className="chat-input-bar">
+                <input
+                  type="text"
+                  placeholder={user ? "Write message to teammates, paste links or notes..." : "Sign in to chat with team..."}
+                  className="chat-text-input"
+                  value={newChatText}
+                  onChange={e => setNewChatText(e.target.value)}
+                />
+                <button type="submit" className="btn btn-primary chat-send-btn">
+                  <Send size={16} />
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* SUBTAB 2: ROSTER & ROLE MANAGEMENT */}
+          {workspaceTab === 'roster' && (
+            <div className="workspace-roster-view">
+              <div className="roster-grid">
+                {activeTeam.members.map(member => (
+                  <div key={member.userId} className="roster-member-card">
+                    <img src={member.avatar} alt={member.name} className="roster-avatar" />
+                    <div className="roster-info">
+                      <div className="roster-name-row">
+                        <h4 className="roster-name">{member.name}</h4>
+                        {member.isLeader && (
+                          <span className="leader-star-badge" title="Team Leader">
+                            ★ Leader
+                          </span>
+                        )}
+                      </div>
+                      <div className="roster-email">{member.email}</div>
+                      <div className="roster-college">
+                        {member.college || 'Baselios Mathews II College of Engineering'}
+                      </div>
+
+                      {/* Role Selector / Display */}
+                      <div className="roster-role-box">
+                        <span className="role-label">Assigned Role:</span>
+                        {isLeaderOfActiveTeam ? (
+                          <select
+                            className="role-select"
+                            value={member.roleInTeam}
+                            onChange={e => handleRoleChange(member.userId, e.target.value as HackathonRole)}
+                          >
+                            {AVAILABLE_ROLES.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="role-pill">{member.roleInTeam}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pending Join Requests Section (Only for Team Leader or viewing squad) */}
+              {activeTeam.joinRequests.length > 0 && (
+                <div className="pending-requests-section">
+                  <h3 className="section-title-sm">
+                    Pending Squad Join Requests ({activeTeam.joinRequests.filter(r => r.status === 'pending').length})
+                  </h3>
+
+                  <div className="requests-list">
+                    {activeTeam.joinRequests.map(req => (
+                      <div key={req.id} className="request-card">
+                        <img src={req.userAvatar} alt={req.userName} className="request-avatar" />
+                        <div className="request-body">
+                          <div className="request-top">
+                            <span className="request-name">{req.userName}</span>
+                            <span className="request-role-tag">Requested: {req.requestedRole}</span>
+                            <span className={`request-status-pill ${req.status}`}>
+                              {req.status.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="request-college">{req.userCollege || 'BMCE'}</div>
+                          <div className="request-message">"{req.message}"</div>
+                        </div>
+
+                        {isLeaderOfActiveTeam && req.status === 'pending' && (
+                          <div className="request-actions">
+                            <button
+                              className="btn btn-primary"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                              onClick={() => handleRespondRequest(req.id, 'accepted')}
+                            >
+                              Accept Into Squad
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                              onClick={() => handleRespondRequest(req.id, 'declined')}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SUBTAB 3: PROJECT SUBMISSION (Devfolio / Lablab style) */}
+          {workspaceTab === 'submission' && (
+            <div className="workspace-submission-view">
+              {/* Jury Evaluation Scorecard (If reviewed by Admin) */}
+              {activeTeam.projectSubmission?.score && (
+                <div className="jury-scorecard-card">
+                  <div className="scorecard-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Star size={20} fill="#f59e0b" color="#f59e0b" />
+                      <h3 style={{ margin: 0, fontWeight: 800 }}>Official Hackathon Jury Scorecard</h3>
+                    </div>
+                    <div className="total-score-badge">
+                      {activeTeam.projectSubmission.score.total} / 100 PTS
+                    </div>
+                  </div>
+
+                  <div className="score-breakdown-grid">
+                    <div className="score-metric">
+                      <span className="metric-val">{activeTeam.projectSubmission.score.innovation}/25</span>
+                      <span className="metric-lbl">Innovation & Novelty</span>
+                    </div>
+                    <div className="score-metric">
+                      <span className="metric-val">{activeTeam.projectSubmission.score.technical}/25</span>
+                      <span className="metric-lbl">Technical Execution</span>
+                    </div>
+                    <div className="score-metric">
+                      <span className="metric-val">{activeTeam.projectSubmission.score.feasibility}/25</span>
+                      <span className="metric-lbl">Feasibility & Impact</span>
+                    </div>
+                    <div className="score-metric">
+                      <span className="metric-val">{activeTeam.projectSubmission.score.presentation}/25</span>
+                      <span className="metric-lbl">Presentation & Demo</span>
+                    </div>
+                  </div>
+
+                  <div className="jury-feedback-box">
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.35rem', color: 'var(--accent-cyan)' }}>
+                      Jury Evaluation Remarks ({activeTeam.projectSubmission.reviewedBy || 'Jury Panel'}):
+                    </div>
+                    <p style={{ margin: 0, fontStyle: 'italic', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                      "{activeTeam.projectSubmission.adminFeedback}"
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Submission Form */}
+              <div className="submission-form-card">
+                <h3 className="section-title-sm" style={{ marginBottom: '1.25rem' }}>
+                  Project Submission & Artifact Repository
+                </h3>
+
+                <div className="submission-fields-grid">
+                  <div className="form-group-full">
+                    <label className="form-label">Project Title *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. AgriVision Jetson Sentinel"
+                      value={submissionTitle}
+                      onChange={e => setSubmissionTitle(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-full">
+                    <label className="form-label">Punchy One-Liner Pitch Tagline</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Multispectral edge AI rig that maps fungal decay in plantations"
+                      value={submissionTagline}
+                      onChange={e => setSubmissionTagline(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-full">
+                    <label className="form-label">Comprehensive Overview & Technical Architecture</label>
+                    <textarea
+                      rows={4}
+                      className="form-textarea"
+                      placeholder="Describe what your team built during the sprint, the problem tackled, and how your code or hardware functions..."
+                      value={submissionOverview}
+                      onChange={e => setSubmissionOverview(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-full">
+                    <label className="form-label">Tech Stack (comma-separated)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="PyTorch, Jetson Orin Nano, PX4 Autopilot, FastAPI, React"
+                      value={submissionTechStack}
+                      onChange={e => setSubmissionTechStack(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-half">
+                    <label className="form-label">
+                      <Github size={14} /> GitHub Repository URL *
+                    </label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="https://github.com/org/hackathon-project"
+                      value={submissionGithub}
+                      onChange={e => setSubmissionGithub(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-half">
+                    <label className="form-label">
+                      <Video size={14} /> Demo Video Link (YouTube / Loom)
+                    </label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="https://youtube.com/watch?v=..."
+                      value={submissionDemoVideo}
+                      onChange={e => setSubmissionDemoVideo(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-half">
+                    <label className="form-label">
+                      <Globe size={14} /> Live Demo WebApp or APK Link
+                    </label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="https://my-demo-app.web.app"
+                      value={submissionLiveDemo}
+                      onChange={e => setSubmissionLiveDemo(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-half">
+                    <label className="form-label">
+                      <FileText size={14} /> Pitch Deck Slides URL (Google Slides / PDF)
+                    </label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="https://slides.google.com/..."
+                      value={submissionPitchDeck}
+                      onChange={e => setSubmissionPitchDeck(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="submission-actions-bar">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={savingSubmission}
+                    onClick={() => handleSaveSubmission('draft')}
+                  >
+                    Save Draft
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={savingSubmission}
+                    onClick={() => handleSaveSubmission('submitted')}
+                  >
+                    <Award size={16} />
+                    Finalize & Submit to Jury
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUBTAB 4: SQUAD SETTINGS (LEADER ONLY) */}
+          {workspaceTab === 'settings' && isLeaderOfActiveTeam && (
+            <div className="workspace-settings-card">
+              <h3 className="section-title-sm" style={{ marginBottom: '1.25rem' }}>
+                Squad Preferences & External Communication Channels
+              </h3>
+
+              <div className="form-group-full" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Team Discord Invite Link</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://discord.gg/..."
+                  value={activeTeam.discordInviteUrl || ''}
+                  onChange={e => {
+                    hackathonService.updateSocialLinks(activeTeam.id, { discordInviteUrl: e.target.value });
+                    refreshTeams();
+                  }}
+                />
+              </div>
+
+              <div className="form-group-full" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Team WhatsApp Group Invite Link</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://chat.whatsapp.com/..."
+                  value={activeTeam.whatsappGroupUrl || ''}
+                  onChange={e => {
+                    hackathonService.updateSocialLinks(activeTeam.id, { whatsappGroupUrl: e.target.value });
+                    refreshTeams();
+                  }}
+                />
+              </div>
+
+              <div className="form-group-full" style={{ marginBottom: '1rem' }}>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={activeTeam.isOpen}
+                    onChange={e => {
+                      hackathonService.updateSocialLinks(activeTeam.id, { isOpen: e.target.checked });
+                      refreshTeams();
+                    }}
+                  />
+                  <span>Allow Open Squad Join Requests</span>
+                </label>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* TAB 3: FORM NEW HACKATHON SQUAD FORM */}
+      {activeTab === 'create-team' && (
+        <section className="container hackathon-section">
+          <div className="create-team-container">
+            <h2 className="workspace-title" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+              Register & Form New Hackathon Squad
+            </h2>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+              Create your squad workspace, set seeking roles, and share direct WhatsApp/Discord channels for seamless buildathon collaboration.
+            </p>
+
+            <form onSubmit={handleCreateTeam} className="create-team-form">
+              <div className="form-group-full">
+                <label className="form-label">Team Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. ApexRobotics, QuantumShift, ByteForge"
+                  className="form-input"
+                  value={teamName}
+                  onChange={e => setTeamName(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group-full">
+                <label className="form-label">Project Tagline & Vision *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Autonomous marine rover that detects toxic chemical seepage"
+                  className="form-input"
+                  value={teamTagline}
+                  onChange={e => setTeamTagline(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group-half">
+                <label className="form-label">Hackathon Track</label>
+                <select
+                  className="form-input"
+                  value={teamTrack}
+                  onChange={e => setTeamTrack(e.target.value)}
+                >
+                  {hackathon.tracks.map(tr => (
+                    <option key={tr} value={tr}>{tr}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group-half">
+                <label className="form-label">Your Role as Leader</label>
+                <select
+                  className="form-input"
+                  value={myLeaderRole}
+                  onChange={e => setMyLeaderRole(e.target.value as HackathonRole)}
+                >
+                  {AVAILABLE_ROLES.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group-full">
+                <label className="form-label">Seeking Roles (Select needed members):</label>
+                <div className="role-checkboxes-grid">
+                  {AVAILABLE_ROLES.filter(r => r !== myLeaderRole).map(r => (
+                    <label key={r} className="role-check-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedSeekingRoles.includes(r)}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedSeekingRoles([...selectedSeekingRoles, r]);
+                          else setSelectedSeekingRoles(selectedSeekingRoles.filter(item => item !== r));
+                        }}
+                      />
+                      <span>{r}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group-half">
+                <label className="form-label">Discord Server Invite (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://discord.gg/..."
+                  className="form-input"
+                  value={teamDiscordUrl}
+                  onChange={e => setTeamDiscordUrl(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group-half">
+                <label className="form-label">WhatsApp Group Link (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://chat.whatsapp.com/..."
+                  className="form-input"
+                  value={teamWhatsappUrl}
+                  onChange={e => setTeamWhatsappUrl(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group-full">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={teamIsOpen}
+                    onChange={e => setTeamIsOpen(e.target.checked)}
+                  />
+                  <span>
+                    Open Squad (Anyone can join directly without manual approval if spots are open)
+                  </span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ padding: '0.8rem 2.5rem', fontSize: '1rem' }}>
+                  <Flame size={18} /> Launch Squad Workspace
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {/* JOIN SQUAD MODAL */}
+      {isJoinModalOpen && joinTargetTeam && (
+        <div className="hackathon-modal-overlay" onClick={() => setIsJoinModalOpen(false)}>
+          <div className="hackathon-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, fontWeight: 800 }}>
+                Join Squad: {joinTargetTeam.name}
+              </h3>
+              <button className="modal-close" onClick={() => setIsJoinModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+                {joinTargetTeam.isOpen
+                  ? "This squad is openly accepting teammates! Pick your role to join immediately."
+                  : "This squad requires leader approval. Your request will be sent to the team leader."}
+              </p>
+
+              <div className="form-group-full" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">What role will you fulfill? *</label>
+                <select
+                  className="form-input"
+                  value={joinRequestedRole}
+                  onChange={e => setJoinRequestedRole(e.target.value as HackathonRole)}
+                >
+                  {AVAILABLE_ROLES.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group-full" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label">Message / Skills Note for Team</label>
+                <textarea
+                  rows={3}
+                  className="form-textarea"
+                  placeholder="Share your experience (e.g. Built 2 ROS2 robots, experience in PyTorch edge models, Figma designer)..."
+                  value={joinNote}
+                  onChange={e => setJoinNote(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsJoinModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmJoin}
+                >
+                  Confirm & Join Squad
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Toast */}
+      {toastMessage && (
+        <div className="hackathon-toast">
+          <CheckCircle size={18} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      <Footer />
+    </div>
+  );
+};

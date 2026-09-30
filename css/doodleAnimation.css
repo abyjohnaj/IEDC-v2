@@ -1,0 +1,426 @@
+/* ==========================================================================
+   IEDC BMCE HERO DOODLE SHORT FILM - SKETCHBOOK AESTHETIC
+   Hand-Drawn Pen & Ink Vector Rig with Realistic Proportions & Kinematics
+   ========================================================================== */
+
+:root {
+  --doodle-ink: #1c222c;
+  --doodle-ink-secondary: #475569;
+  --doodle-accent-cyan: #00bcd4;
+  --doodle-accent-amber: #f59e0b;
+  --doodle-accent-red: #ef4444;
+  --doodle-accent-green: #10b981;
+  --doodle-paper-bg: #fcfbf7;
+  --doodle-paper-grid: rgba(28, 34, 44, 0.045);
+}
+
+/* Doodle Container Card */
+.hero-doodle-container {
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.doodle-sketchpad {
+  width: 100%;
+  max-width: 640px;
+  background: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  position: relative;
+  overflow: visible;
+  padding: 0;
+  transition: none;
+}
+
+.doodle-sketchpad:hover {
+  box-shadow: none;
+}
+
+/* Main SVG Canvas */
+.doodle-svg-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 650 / 400;
+  display: block;
+  overflow: visible;
+}
+
+/* Organic Sketch Pen Strokes */
+.sketch-line {
+  stroke: var(--doodle-ink);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.sketch-line-thin {
+  stroke: var(--doodle-ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.sketch-line-bold {
+  stroke: var(--doodle-ink);
+  stroke-width: 4.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.sketch-cyan {
+  stroke: var(--doodle-accent-cyan) !important;
+}
+
+.sketch-amber {
+  stroke: var(--doodle-accent-amber) !important;
+}
+
+.sketch-red {
+  stroke: var(--doodle-accent-red) !important;
+}
+
+.sketch-green {
+  stroke: var(--doodle-accent-green) !important;
+}
+
+.sketch-fill-paper {
+  fill: #fcfbf7;
+}
+
+.sketch-fill-cyan {
+  fill: rgba(0, 188, 212, 0.16);
+}
+
+.sketch-fill-amber {
+  fill: rgba(245, 158, 11, 0.2);
+}
+
+/* Hand-drawn sketch typography */
+.doodle-text {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, cursive, sans-serif;
+  font-weight: 800;
+  fill: var(--doodle-ink);
+  text-anchor: middle;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+/* Character Rig Wrapper */
+#doodle-boy-actor {
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Pose layers */
+.boy-pose-layer {
+  display: none;
+}
+
+.boy-pose-layer.is-active {
+  display: block;
+}
+
+/* ==========================================================================
+   ACTOR ACTION KEYFRAMES
+   ========================================================================== */
+
+/* 1. Subtle Natural Breathing */
+@keyframes naturalBreath {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.anim-natural-breathe {
+  animation: naturalBreath 2.4s ease-in-out infinite;
+}
+
+/* 2. Realistic Walking Cycle */
+@keyframes walkFootLeft {
+  0%   { transform: translate(0, 0) rotate(0); }
+  25%  { transform: translate(12px, -8px) rotate(14deg); }
+  50%  { transform: translate(24px, 0) rotate(-4deg); }
+  75%  { transform: translate(12px, 0) rotate(0); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+@keyframes walkFootRight {
+  0%   { transform: translate(24px, 0) rotate(-4deg); }
+  25%  { transform: translate(12px, 0) rotate(0); }
+  50%  { transform: translate(0, 0) rotate(0); }
+  75%  { transform: translate(12px, -8px) rotate(14deg); }
+  100% { transform: translate(24px, 0) rotate(-4deg); }
+}
+
+@keyframes walkArmL {
+  0%, 100% { transform: rotate(18deg); }
+  50% { transform: rotate(-18deg); }
+}
+
+@keyframes walkArmR {
+  0%, 100% { transform: rotate(-18deg); }
+  50% { transform: rotate(18deg); }
+}
+
+@keyframes walkTorsoBob {
+  0%, 50%, 100% { transform: translateY(0); }
+  25%, 75% { transform: translateY(-3.5px); }
+}
+
+.anim-walk-foot-l {
+  animation: walkFootLeft 0.6s linear infinite;
+}
+
+.anim-walk-foot-r {
+  animation: walkFootRight 0.6s linear infinite;
+}
+
+.anim-walk-arm-l {
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: walkArmL 0.6s ease-in-out infinite;
+}
+
+.anim-walk-arm-r {
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: walkArmR 0.6s ease-in-out infinite;
+}
+
+.anim-walk-bob {
+  animation: walkTorsoBob 0.6s ease-in-out infinite;
+}
+
+/* 3. Drawing Arm Action (Pencil movement on paper) */
+@keyframes drawingMotion {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(5px, -3px) rotate(3deg); }
+  50% { transform: translate(-3px, 2px) rotate(-2deg); }
+  75% { transform: translate(4px, 1px) rotate(2deg); }
+}
+
+.anim-drawing-hand {
+  transform-box: fill-box;
+  transform-origin: top left;
+  animation: drawingMotion 0.32s ease-in-out infinite;
+}
+
+/* 4. Active Building / Tool Tightening */
+@keyframes wrenchTorque {
+  0%, 100% { transform: rotate(0); }
+  45% { transform: rotate(-26deg); }
+  70% { transform: rotate(6deg); }
+}
+
+.anim-wrench-torque {
+  transform-box: fill-box;
+  transform-origin: top left;
+  animation: wrenchTorque 0.42s ease-in-out infinite;
+}
+
+/* 5. Tense Anticipation (Button press) */
+@keyframes tenseAnticipation {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.2px); }
+}
+
+.anim-tense-wait {
+  animation: tenseAnticipation 0.28s ease-in-out infinite;
+}
+
+/* 6. Rotating Gear Inspection in Hands */
+@keyframes examineGearSlow {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(80deg); }
+}
+
+.anim-inspect-gear {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: examineGearSlow 1.8s ease-in-out infinite;
+}
+
+/* 7. Victory Jump */
+@keyframes victoryLeap {
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-18px); }
+}
+
+.anim-victory-leap {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: victoryLeap 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+/* ==========================================================================
+   OBJECT KEYFRAMES: Prototype, Sparkles, Rays
+   ========================================================================== */
+
+/* Lightbulb Pop */
+@keyframes bulbPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.anim-bulb-pop {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: bulbPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes rayPulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+.anim-ray-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rayPulse 1.2s ease-in-out infinite;
+}
+
+/* Prototype Wobble */
+@keyframes prototypeWobble {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.02) rotate(-1.5deg); }
+  75% { transform: scale(0.98) rotate(1.5deg); }
+}
+
+.anim-prototype-wobble {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: prototypeWobble 0.6s ease-in-out infinite;
+}
+
+/* Failure Violent Shake */
+@keyframes violentShake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-5px, 2px) rotate(-3deg); }
+  40% { transform: translate(5px, -2px) rotate(3deg); }
+  60% { transform: translate(-4px, -1px) rotate(-2deg); }
+  80% { transform: translate(4px, 1px) rotate(2deg); }
+}
+
+.anim-violent-shake {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: violentShake 0.35s ease-in-out infinite;
+}
+
+@keyframes smokePuff {
+  0% { transform: scale(0.2); opacity: 0; }
+  40% { transform: scale(1.1); opacity: 0.9; }
+  100% { transform: scale(1.3) translateY(-15px); opacity: 0; }
+}
+
+.anim-smoke-puff {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: smokePuff 1s ease-out infinite;
+}
+
+/* Success Launch & Energy */
+@keyframes rocketLaunch {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-7px) scale(1.02); }
+}
+
+.anim-success-active {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: rocketLaunch 1.8s ease-in-out infinite;
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0.5; }
+  50% { transform: scale(1.25) rotate(45deg); opacity: 1; }
+}
+
+.anim-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkleTwinkle 1s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   RESPONSIVE BEHAVIOR
+   ========================================================================== */
+
+@media (min-width: 1440px) {
+  .doodle-sketchpad {
+    max-width: 630px;
+    padding: 1.5rem 1.25rem 1rem 1.25rem;
+  }
+}
+
+@media (max-width: 1280px) {
+  .doodle-sketchpad {
+    max-width: 550px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .hero-doodle-container {
+    margin-top: 1.5rem;
+  }
+  .doodle-sketchpad {
+    max-width: 540px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-doodle-container {
+    margin-top: 1.5rem;
+    width: 100%;
+  }
+  .doodle-sketchpad {
+    max-width: 100%;
+    padding: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .doodle-sketchpad {
+    padding: 0;
+  }
+}
+
+/* ==========================================================================
+   HAND-DRAWN PAPER ROCKETS (Full Hero Section Flying Trajectories)
+   ========================================================================== */
+.hero-paper-rockets-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+  overflow: hidden;
+}
+
+.paper-rocket-trail {
+  fill: none;
+  stroke: rgba(28, 34, 44, 0.32);
+  stroke-width: 1.8px;
+  stroke-dasharray: 6 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 1.8s ease-out;
+  pointer-events: none;
+}
+
+.flying-paper-rocket {
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(28, 34, 44, 0.08));
+}
+

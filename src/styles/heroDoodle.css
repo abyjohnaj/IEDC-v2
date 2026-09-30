@@ -1,0 +1,221 @@
+/* Hand-Drawn Sketchbook Boy Hero Canvas & Environment Styles */
+
+.hero-doodle-container {
+  position: relative;
+  width: 100%;
+  max-width: 650px;
+  margin: 0 auto;
+  user-select: none;
+}
+
+.doodle-sketchpad {
+  position: relative;
+  background: #faf8f5; /* Warm hand-drawn artist paper */
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 0 30px rgba(0, 242, 254, 0.15);
+  overflow: hidden;
+  border: 2px solid rgba(220, 215, 205, 0.8);
+  aspect-ratio: 650 / 420;
+  display: flex;
+  flex-direction: column;
+}
+
+.notebook-hero .doodle-sketchpad {
+  border: 2px solid #cbd5e1;
+  box-shadow: 
+    0 20px 40px -10px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(15, 23, 42, 0.05),
+    0 4px 14px rgba(2, 132, 199, 0.1);
+}
+
+/* Subtle sketchbook paper grid texture */
+.doodle-sketchpad::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(#d4cfc4 0.75px, transparent 0.75px),
+    radial-gradient(#d4cfc4 0.75px, #faf8f5 0.75px);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.doodle-svg-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 2;
+}
+
+/* Pen & Ink Sketch Stroke Classes */
+.sketch-line-bold {
+  stroke: #1c222c;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.sketch-line {
+  stroke: #1c222c;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.sketch-line-thin {
+  stroke: #1c222c;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.sketch-fill-paper {
+  fill: #faf8f5;
+}
+
+.sketch-fill-amber {
+  fill: rgba(245, 158, 11, 0.18);
+}
+
+.sketch-fill-cyan {
+  fill: rgba(0, 242, 254, 0.18);
+}
+
+.sketch-cyan {
+  stroke: #00bcd4 !important;
+}
+
+.sketch-amber {
+  stroke: #f59e0b !important;
+}
+
+.sketch-red {
+  stroke: #ef4444 !important;
+}
+
+.sketch-green {
+  stroke: #10b981 !important;
+}
+
+.doodle-text {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Sketchbook Control Bar */
+.doodle-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 0.8rem;
+  z-index: 10;
+}
+
+.doodle-ctrl-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.doodle-ctrl-btn:hover {
+  background: var(--accent-cyan);
+  color: #090d16;
+  border-color: var(--accent-cyan);
+}
+
+.doodle-scrubber-container {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  margin: 0 1rem;
+}
+
+.doodle-scrubber {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+.doodle-scrubber-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-amber));
+  border-radius: 2px;
+}
+
+.doodle-scene-badge {
+  background: rgba(0, 242, 254, 0.12);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Scene Jump Quick Buttons */
+.doodle-scene-chips {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.35rem 0.5rem;
+  background: rgba(9, 13, 22, 0.95);
+  border-bottom: 1px solid var(--border-color);
+  scrollbar-width: none;
+}
+
+.doodle-scene-chip {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.doodle-scene-chip:hover, .doodle-scene-chip.active {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+@media (max-width: 600px) {
+  .doodle-scene-chips {
+    display: none;
+  }
+}

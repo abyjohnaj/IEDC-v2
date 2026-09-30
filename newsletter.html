@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eureka 3D Library Shelf | IEDC BMCE</title>
+  <meta name="description" content="Experience the 3D interactive round library shelf of Eureka Newsletters at IEDC BMCE. Click any edition to fly it forward into a native 3D page-folding magazine viewer.">
+  
+  <link rel="icon" type="image/png" href="assets/iedc_brand_logo.png">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/animations.css">
+  
+  <style>
+    /* 3D Round Library Shelf Styling */
+    .library-section {
+      min-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem 6rem;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at center, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 1) 85%);
+    }
+
+    .shelf-heading {
+      text-align: center;
+      margin-bottom: 2rem;
+      z-index: 10;
+    }
+
+    /* 3D Scene Perspective */
+    .scene-container {
+      width: 100%;
+      max-width: 1000px;
+      height: 480px;
+      perspective: 1200px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      cursor: grab;
+    }
+
+    .scene-container:active {
+      cursor: grabbing;
+    }
+
+    /* The Circular Rotatable Shelf Ring */
+    .round-shelf {
+      width: 220px;
+      height: 310px;
+      position: absolute;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Glowing Circular Floor Base */
+    .shelf-floor-ring {
+      position: absolute;
+      width: 640px;
+      height: 640px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 242, 254, 0.3);
+      background: radial-gradient(circle, rgba(0, 242, 254, 0.08) 0%, transparent 70%);
+      transform: translate(-50%, -50%) rotateX(75deg) translateZ(-120px);
+      top: 65%;
+      left: 50%;
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.2), inset 0 0 30px rgba(99, 102, 241, 0.2);
+      pointer-events: none;
+    }
+
+    /* Individual Newsletter Book Item on Shelf */
+    .shelf-item {
+      position: absolute;
+      width: 220px;
+      height: 310px;
+      left: 0;
+      top: 0;
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.5rem;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease, border-color 0.4s ease;
+    }
+
+    .shelf-item:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 30px rgba(0, 242, 254, 0.4), 0 20px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    /* "Throw Forward" Animation Class */
+    .shelf-item.thrown-forward {
+      position: fixed !important;
+      z-index: 9999 !important;
+      top: 50% !important;
+      left: 50% !important;
+      width: 260px !important;
+      height: 360px !important;
+      transform: translate(-50%, -50%) scale(2.2) rotateY(0deg) !important;
+      box-shadow: 0 0 100px rgba(0, 242, 254, 0.7), 0 40px 100px rgba(0, 0, 0, 0.95) !important;
+      border-color: var(--accent-cyan) !important;
+      opacity: 0.9;
+    }
+
+    .book-spine-glow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 100%;
+      background: linear-gradient(to right, rgba(0, 242, 254, 0.8), transparent);
+      border-top-left-radius: var(--radius-md);
+      border-bottom-left-radius: var(--radius-md);
+    }
+
+    .book-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .book-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.1);
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+    }
+
+    .book-cover-art {
+      font-size: 3.5rem;
+      text-align: center;
+      margin: 1rem 0;
+      filter: drop-shadow(0 4px 10px rgba(0, 242, 254, 0.3));
+    }
+
+    .book-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+      text-align: center;
+    }
+
+    .book-date {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 0.3rem;
+    }
+
+    .click-to-read-hint {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-amber);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    /* Carousel Navigation Buttons */
+    .shelf-controls {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 3rem;
+      z-index: 10;
+    }
+
+    .control-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      color: #ffffff;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      backdrop-filter: blur(8px);
+    }
+
+    .control-btn:hover {
+      background: var(--accent-indigo);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+      transform: scale(1.1);
+    }
+
+    /* =================================================== */
+    /* Native 3D Magazine Page-Fold Reader Overlay Styles */
+    /* =================================================== */
+
+    .magazine-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .magazine-modal-overlay.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .magazine-viewport {
+      width: 92vw;
+      max-width: 960px;
+      height: 82vh;
+      max-height: 640px;
+      perspective: 1600px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .magazine-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      color: #ffffff;
+    }
+
+    .magazine-book-stage {
+      flex: 1;
+      display: flex;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* Left and Right Double Pages */
+    .magazine-page {
+      flex: 1;
+      width: 50%;
+      height: 100%;
+      background: #0f172a;
+      color: var(--text-primary);
+      padding: 2.5rem;
+      overflow-y: auto;
+      position: relative;
+      box-sizing: border-box;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .magazine-page.left-page {
+      background: linear-gradient(to right, #0b1329 96%, #030712 100%);
+      border-top-left-radius: var(--radius-md);
+      border-bottom-left-radius: var(--radius-md);
+      box-shadow: inset -15px 0 25px rgba(0, 0, 0, 0.6);
+    }
+
+    .magazine-page.right-page {
+      background: linear-gradient(to left, #0b1329 96%, #030712 100%);
+      border-top-right-radius: var(--radius-md);
+      border-bottom-right-radius: var(--radius-md);
+      box-shadow: inset 15px 0 25px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Spine Crease Line */
+    .magazine-spine-crease {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 100%;
+      background: rgba(0, 242, 254, 0.4);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.8), 0 0 20px rgba(0,0,0,0.9);
+      z-index: 10;
+      transform: translateX(-50%);
+    }
+
+    .page-num {
+      position: absolute;
+      bottom: 1.2rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .left-page .page-num { left: 2rem; }
+    .right-page .page-num { right: 2rem; }
+
+    /* Page Navigation Footer Controls */
+    .magazine-nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1.2rem;
+    }
+
+    .page-turn-btn {
+      padding: 0.6rem 1.4rem;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: var(--transition);
+    }
+
+    .page-turn-btn:hover:not(:disabled) {
+      background: var(--accent-indigo);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .page-turn-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* 3D Page Fold Flip Transition Effect */
+    .flipping-left {
+      animation: foldFlipLeft 0.5s ease-in-out forwards;
+    }
+    .flipping-right {
+      animation: foldFlipRight 0.5s ease-in-out forwards;
+    }
+
+    @keyframes foldFlipLeft {
+      0% { transform: rotateY(0deg); opacity: 1; }
+      50% { transform: rotateY(-90deg) scale(0.95); opacity: 0.7; }
+      100% { transform: rotateY(0deg); opacity: 1; }
+    }
+    @keyframes foldFlipRight {
+      0% { transform: rotateY(0deg); opacity: 1; }
+      50% { transform: rotateY(90deg) scale(0.95); opacity: 0.7; }
+      100% { transform: rotateY(0deg); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Glass Navigation Header -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="index.html" class="logo-brand">
+        <div>
+          <span class="brand-name">IEDC <span style="color: var(--accent-cyan);">BMCE</span></span>
+          <span class="brand-sub">Native 3D Library Shelf</span>
+        </div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="index.html#home">Home</a></li>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="index.html#events">Events</a></li>
+        <li><a href="newsletter.html" class="active">Eureka Newsletter</a></li>
+        <li><a href="index.html#forum">Community Forum</a></li>
+        <li><a href="index.html#incubation">Incubation</a></li>
+        <li><a href="index.html#contact">Contact</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button id="theme-toggle-btn" class="theme-toggle" title="Toggle Light/Dark Theme">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        </button>
+        <a href="index.html" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.85rem;">
+          ← Back to Main Hub
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3D Library Stage Section -->
+  <section class="library-section">
+    <div class="shelf-heading">
+      <span class="section-subtitle">Interactive 360° Library Shelf</span>
+      <h1 class="section-title">Eureka <span class="gradient-text">Publications Shelf</span></h1>
+      <p class="section-desc" style="max-width: 600px; margin: 0 auto;">
+        Drag to spin the 3D round library shelf. Click any edition to <b>throw it forward</b> into a native 3D page-folding magazine viewer!
+      </p>
+    </div>
+
+    <!-- Glowing Floor Ring -->
+    <div class="shelf-floor-ring"></div>
+
+    <!-- 3D Scene Container -->
+    <div id="scene-container" class="scene-container">
+      <div id="round-shelf" class="round-shelf">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+    </div>
+
+    <!-- Shelf Rotation Controls -->
+    <div class="shelf-controls">
+      <button class="control-btn" onclick="rotateShelf(-1)" title="Rotate Shelf Left">↺</button>
+      <button class="control-btn" onclick="rotateShelf(1)" title="Rotate Shelf Right">↻</button>
+    </div>
+  </section>
+
+  <!-- Native 3D Magazine Page-Turn Reader Overlay -->
+  <div id="magazine-modal" class="magazine-modal-overlay">
+    <div class="magazine-viewport">
+      <div class="magazine-toolbar">
+        <div>
+          <span class="badge-tag" id="mag-edition-badge">Vol 3 • Jan 2025</span>
+          <span id="mag-edition-title" style="font-weight: 700; font-size: 1.1rem; margin-left: 0.8rem;" class="gradient-text">Eureka Newsletter</span>
+        </div>
+        <div style="display: flex; gap: 0.8rem; align-items: center;">
+          <a id="mag-pdf-link" href="#" target="_blank" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+            📥 Open Drive PDF
+          </a>
+          <button class="btn btn-secondary" onclick="closeMagazineModal()" style="padding: 0.4rem 0.8rem; font-size: 1rem; line-height: 1;">✕</button>
+        </div>
+      </div>
+
+      <!-- Double Page Book Stage -->
+      <div id="magazine-stage" class="magazine-book-stage">
+        <div class="magazine-spine-crease"></div>
+        <div id="page-left" class="magazine-page left-page">
+          <!-- Left page content rendered dynamically -->
+        </div>
+        <div id="page-right" class="magazine-page right-page">
+          <!-- Right page content rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Navigation Bar -->
+      <div class="magazine-nav-bar">
+        <button id="prev-page-btn" class="page-turn-btn" onclick="flipPage(-1)">
+          ◄ Previous Spread
+        </button>
+
+        <span id="page-indicator" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">
+          Page 1 - 2 of 6
+        </span>
+
+        <button id="next-page-btn" class="page-turn-btn" onclick="flipPage(1)">
+          Next Spread ►
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        &copy; 2026 IEDC BMCE | Native 3D Page-Folding Eureka Library Reader. All Rights Reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const newsletterEditions = [
+      {
+        id: "edition-jan-2025",
+        year: "2025",
+        title: "Eureka Jan 2025",
+        sub: "Vol 3, Issue 1",
+        description: "EKAH '25 Fest, CEO Mindsets, KSUM Prototype Grants, & Patent Support Guidelines.",
+        coverIcon: "📰",
+        drivePdfUrl: "https://drive.google.com/file/d/13no5SZQYDedneQpACfbn5kVUEQdsvB2C/view?usp=sharing",
+        pages: [
+          {
+            left: `
+              <div style="text-align: center; margin-top: 2rem;">
+                <span class="badge-tag">Official Cover</span>
+                <h1 style="font-size: 2.2rem; margin-top: 1rem;" class="gradient-text">EUREKA</h1>
+                <p style="color: var(--accent-cyan); font-weight: 700; margin-bottom: 2rem;">JANUARY 2025 EDITION</p>
+                <div style="font-size: 5rem; margin: 1.5rem 0;">📰</div>
+                <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Empowering Student Founders</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Official Innovation Publication of Baselios Mathews II College of Engineering, Sasthamcotta.</p>
+              </div>
+            `,
+            right: `
+              <h3 class="gradient-text" style="font-size: 1.3rem; margin-bottom: 1rem;">Table of Contents & Highlights</h3>
+              <ul style="line-height: 1.8; color: var(--text-secondary); font-size: 0.9rem; padding-left: 1.2rem;">
+                <li><b style="color: #fff;">01. Editor's Desk:</b> The Power of Student Pre-Seed Grants</li>
+                <li><b style="color: #fff;">02. EKAH '25:</b> Techno-Cultural Innovation Showcase</li>
+                <li><b style="color: #fff;">03. Startup Spotlight:</b> EcoCharge Smart EV Charger</li>
+                <li><b style="color: #fff;">04. Agri-Tech Breakthrough:</b> Drone Crop Health Monitor</li>
+                <li><b style="color: #fff;">05. KSUM Guidelines:</b> Applying for ₹2 Lakhs Idea Grant</li>
+                <li><b style="color: #fff;">06. IPR & Patent Cell:</b> How BMCE protects student IP</li>
+              </ul>
+              <div style="margin-top: 2rem; padding: 1rem; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.2); border-radius: var(--radius-md);">
+                <span style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: 700;">DID YOU KNOW?</span>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.3rem;">Over 50+ student startup concepts were incubated at IEDC BMCE during 2024!</p>
+              </div>
+            `
+          },
+          {
+            left: `
+              <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">Startup Spotlight #1</span>
+              <h2 class="gradient-text" style="font-size: 1.5rem; margin-top: 0.3rem; margin-bottom: 0.8rem;">EcoCharge - IoT EV Station</h2>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1rem;">
+                Developed by <b>Ivin Saji (S7 CSE)</b> and team, EcoCharge is a low-cost smart EV charging station designed for college campuses and private parking hubs.
+              </p>
+              <div style="padding: 1rem; background: rgba(255,255,255,0.03); border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                <h4 style="font-size: 0.9rem; color: var(--accent-amber); margin-bottom: 0.4rem;">Key Hardware Features:</h4>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">• ESP32 WiFi/Bluetooth Controller<br>• Automated QR Payment Integration<br>• Real-time Energy Metering via App</p>
+              </div>
+            `,
+            right: `
+              <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">Startup Spotlight #2</span>
+              <h2 class="gradient-text" style="font-size: 1.5rem; margin-top: 0.3rem; margin-bottom: 0.8rem;">Agri-Drone Crop Scanner</h2>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1rem;">
+                Pioneered by <b>Gouri Krishna (S7 ECE)</b>, this low-cost multispectral imaging drone analyzes crop health in Kollam and Alappuzha paddy fields to detect pest infestations 14 days earlier.
+              </p>
+              <div style="padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: var(--radius-md); border: 1px solid rgba(99, 102, 241, 0.3);">
+                <h4 style="font-size: 0.9rem; color: #fff; margin-bottom: 0.4rem;">KSUM Grant Award:</h4>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">Awarded pre-incubation support and prototyping funding under Kerala Startup Mission!</p>
+              </div>
+            `
+          },
+          {
+            left: `
+              <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">Grant & Seed Support</span>
+              <h2 class="gradient-text" style="font-size: 1.5rem; margin-top: 0.3rem; margin-bottom: 0.8rem;">How to Apply for KSUM Idea Grants</h2>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1rem;">
+                IEDC BMCE assists student teams in drafting pitch decks and filing applications for KSUM Grants up to <b>₹2 Lakhs</b>.
+              </p>
+              <ol style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.7; padding-left: 1.2rem;">
+                <li>Form a multi-disciplinary student team (2-4 members).</li>
+                <li>Submit your problem statement via the IEDC Portal.</li>
+                <li>Attend the Design Thinking Workshop at IEDC Maker Space.</li>
+                <li>Present your MVP prototype to the Nodal Officer Panel.</li>
+              </ol>
+            `,
+            right: `
+              <div style="text-align: center; padding-top: 2rem;">
+                <span class="badge-tag">Join the Ecosystem</span>
+                <h2 style="font-size: 1.6rem; margin-top: 0.8rem;" class="gradient-text">Ready to Turn Your Idea into Reality?</h2>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem;">Get access to 3D printers, IoT hardware kits, legal patent filing guidance, and mentor networks.</p>
+                <a href="index.html#forum" class="btn btn-amber" style="display: inline-flex; justify-content: center;">
+                  🤝 Join IEDC Innovators Forum
+                </a>
+              </div>
+            `
+          }
+        ]
+      },
+      {
+        id: "edition-dec-2024",
+        year: "2024",
+        title: "Eureka Dec 2024",
+        sub: "Vol 2, Issue 12",
+        description: "Year-End Incubator Success Stories, IoT Hardware Recaps, & Founder Interviews.",
+        coverIcon: "🚀",
+        drivePdfUrl: "https://drive.google.com/file/d/13no5SZQYDedneQpACfbn5kVUEQdsvB2C/view?usp=sharing",
+        pages: [
+          {
+            left: `
+              <div style="text-align: center; margin-top: 2rem;">
+                <span class="badge-tag">Year-End Issue</span>
+                <h1 style="font-size: 2.2rem; margin-top: 1rem;" class="gradient-text">EUREKA</h1>
+                <p style="color: var(--accent-cyan); font-weight: 700; margin-bottom: 2rem;">DECEMBER 2024 EDITION</p>
+                <div style="font-size: 5rem; margin: 1.5rem 0;">🚀</div>
+                <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">2024 Innovation Milestone Review</h3>
+              </div>
+            `,
+            right: `
+              <h3 class="gradient-text" style="font-size: 1.3rem; margin-bottom: 1rem;">2024 Highlights Overview</h3>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                Reflecting on 25+ technical bootcamps, 500+ active student innovators, and over ₹10 Lakhs in total grant support generated for BMCE student ventures.
+              </p>
+            `
+          }
+        ]
+      },
+      {
+        id: "edition-ksum-special",
+        year: "Special",
+        title: "KSUM Innovation Issue",
+        sub: "Special Edition",
+        description: "KSUM Idea Grants up to ₹2 Lakhs, Prototyping Labs, & Pre-Seed Funding.",
+        coverIcon: "💡",
+        drivePdfUrl: "https://drive.google.com/file/d/13no5SZQYDedneQpACfbn5kVUEQdsvB2C/view?usp=sharing",
+        pages: [
+          {
+            left: `
+              <div style="text-align: center; margin-top: 2rem;">
+                <span class="badge-tag">Funding Special</span>
+                <h1 style="font-size: 2.2rem; margin-top: 1rem;" class="gradient-text">EUREKA</h1>
+                <p style="color: var(--accent-cyan); font-weight: 700; margin-bottom: 2rem;">KSUM SPECIAL EDITION</p>
+                <div style="font-size: 5rem; margin: 1.5rem 0;">💡</div>
+                <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Grant Funding & Incubation Guide</h3>
+              </div>
+            `,
+            right: `
+              <h3 class="gradient-text" style="font-size: 1.3rem; margin-bottom: 1rem;">Pre-Seed Grant Roadmap</h3>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                A step-by-step guide for BMCE students on securing financial grants up to ₹2 Lakhs from KSUM for building functional prototypes.
+              </p>
+            `
+          }
+        ]
+      }
+    ];
+
+    let currentRotation = 0;
+    const radius = 340; // 3D cylinder radius in px
+    let activeEdition = null;
+    let currentSpreadIdx = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initThemeToggle();
+      renderRoundShelf();
+      initDragToRotate();
+
+      // Keyboard arrow keys navigation for magazine reader
+      window.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('magazine-modal');
+        if (modal && modal.classList.contains('active')) {
+          if (e.key === 'ArrowLeft') flipPage(-1);
+          if (e.key === 'ArrowRight') flipPage(1);
+          if (e.key === 'Escape') closeMagazineModal();
+        }
+      });
+    });
+
+    function initThemeToggle() {
+      const toggleBtn = document.getElementById('theme-toggle-btn');
+      if (!toggleBtn) return;
+      const savedTheme = localStorage.getItem('iedc-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+
+      toggleBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('iedc-theme', newTheme);
+      });
+    }
+
+    function renderRoundShelf() {
+      const shelf = document.getElementById('round-shelf');
+      if (!shelf) return;
+
+      const totalItems = newsletterEditions.length;
+      const angleStep = 360 / totalItems;
+
+      shelf.innerHTML = newsletterEditions.map((ed, idx) => {
+        const angle = idx * angleStep;
+        return `
+          <div class="shelf-item" 
+               id="item-${ed.id}"
+               data-angle="${angle}"
+               style="transform: rotateY(${angle}deg) translateZ(${radius}px);"
+               onclick="throwBookForward('${ed.id}')">
+            <div class="book-spine-glow"></div>
+            <div class="book-header">
+              <span class="book-badge">${ed.year}</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">BMCE</span>
+            </div>
+
+            <div class="book-cover-art">${ed.coverIcon}</div>
+
+            <div>
+              <div class="book-title">${ed.title}</div>
+              <div class="book-date">${ed.sub}</div>
+            </div>
+
+            <div class="click-to-read-hint">
+              <span>✨ Click to Read</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function rotateShelf(direction) {
+      const angleStep = 360 / newsletterEditions.length;
+      currentRotation += direction * angleStep;
+      applyRotation();
+    }
+
+    function applyRotation() {
+      const shelf = document.getElementById('round-shelf');
+      if (shelf) {
+        shelf.style.transform = `rotateY(${-currentRotation}deg)`;
+      }
+    }
+
+    /* Drag / Touch Swipe Rotation */
+    function initDragToRotate() {
+      const container = document.getElementById('scene-container');
+      if (!container) return;
+
+      let isDragging = false;
+      let startX = 0;
+      let startRotation = 0;
+
+      container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startRotation = currentRotation;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - startX;
+        currentRotation = startRotation - (deltaX * 0.4);
+        applyRotation();
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      container.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        startX = e.touches[0].clientX;
+        startRotation = currentRotation;
+      });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const deltaX = e.touches[0].clientX - startX;
+        currentRotation = startRotation - (deltaX * 0.4);
+        applyRotation();
+      });
+
+      window.addEventListener('touchend', () => {
+        isDragging = false;
+      });
+    }
+
+    /* "Throw Forward" Motion & Native 3D Magazine Launch */
+    function throwBookForward(id) {
+      const ed = newsletterEditions.find(e => e.id === id);
+      if (!ed) return;
+
+      const itemElem = document.getElementById(`item-${id}`);
+      if (!itemElem) return;
+
+      itemElem.classList.add('thrown-forward');
+
+      setTimeout(() => {
+        launchNativeMagazineReader(ed);
+        itemElem.classList.remove('thrown-forward');
+      }, 500);
+    }
+
+    /* Native 3D Magazine Double-Page Reader */
+    function launchNativeMagazineReader(ed) {
+      activeEdition = ed;
+      currentSpreadIdx = 0;
+
+      document.getElementById('mag-edition-badge').innerText = `${ed.year} Edition`;
+      document.getElementById('mag-edition-title').innerText = ed.title;
+      document.getElementById('mag-pdf-link').href = ed.drivePdfUrl;
+
+      renderSpread();
+
+      const modal = document.getElementById('magazine-modal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function renderSpread() {
+      if (!activeEdition || !activeEdition.pages) return;
+
+      const spread = activeEdition.pages[currentSpreadIdx] || activeEdition.pages[0];
+      const pageLeft = document.getElementById('page-left');
+      const pageRight = document.getElementById('page-right');
+      const totalSpreads = activeEdition.pages.length;
+
+      pageLeft.innerHTML = spread.left + `<span class="page-num">Page ${currentSpreadIdx * 2 + 1}</span>`;
+      pageRight.innerHTML = spread.right + `<span class="page-num">Page ${currentSpreadIdx * 2 + 2}</span>`;
+
+      document.getElementById('page-indicator').innerText = `Spread ${currentSpreadIdx + 1} of ${totalSpreads}`;
+      document.getElementById('prev-page-btn').disabled = (currentSpreadIdx === 0);
+      document.getElementById('next-page-btn').disabled = (currentSpreadIdx === totalSpreads - 1);
+    }
+
+    function flipPage(direction) {
+      if (!activeEdition) return;
+
+      const newIdx = currentSpreadIdx + direction;
+      if (newIdx < 0 || newIdx >= activeEdition.pages.length) return;
+
+      const stage = document.getElementById('magazine-stage');
+      if (stage) {
+        stage.classList.remove('flipping-left', 'flipping-right');
+        void stage.offsetWidth; // trigger reflow
+        stage.classList.add(direction > 0 ? 'flipping-left' : 'flipping-right');
+      }
+
+      currentSpreadIdx = newIdx;
+      renderSpread();
+    }
+
+    function closeMagazineModal() {
+      const modal = document.getElementById('magazine-modal');
+      if (modal) modal.classList.remove('active');
+    }
+  </script>
+</body>
+</html>
