@@ -20,6 +20,7 @@ import {
   validateKycForRegistrationOrTeamJoin,
   checkSubmissionDeadline
 } from '../utils/hackathonEnforcementRules';
+import { notificationService } from './notificationService';
 
 
 const HACKATHONS_STORAGE_KEY = 'iedc_hackathon_events';
@@ -604,6 +605,26 @@ export const hackathonService = {
       };
       saveTeams(teams);
 
+      // Notify team leader via in-app & email
+      const leader = team.members.find(m => m.isLeader) || team.members[0];
+      if (leader && leader.userId !== user.id) {
+        notificationService.sendNotification({
+          userId: leader.userId,
+          type: 'team_join_request',
+          title: `🚀 New Teammate Request for "${team.name}"`,
+          body: `${user.fullName} requested to join your squad for role: ${role}.${note ? ` Note: "${note}"` : ''}`,
+          link: '/hackathons',
+          metadata: {
+            teamId: team.id,
+            teamName: team.name,
+            applicantId: user.id,
+            applicantName: user.fullName,
+            requestedRole: role,
+            message: note || null,
+          }
+        }).catch(err => console.warn('Could not dispatch team_join_request notification:', err));
+      }
+
       return { joined: false, pending: true };
     }
   },
@@ -879,6 +900,23 @@ export const hackathonService = {
       senderAvatar: '/assets/iedc_brand_logo.png',
       senderRole: 'Judge / Admin',
       text: `⭐ Official Evaluation Received from ${reviewerName}: Total Score: ${score.total}/100. Check the Submission tab for detailed jury feedback!`
+    });
+
+    // Notify all squad members via in-app & email
+    team.members.forEach(member => {
+      notificationService.sendNotification({
+        userId: member.userId,
+        type: 'results_published',
+        title: `🏆 Hackathon Jury Evaluation: "${team.name}" Scored ${score.total}/100!`,
+        body: `Evaluator ${reviewerName} published your score (${score.total}/100) with feedback: "${feedback}".`,
+        link: '/hackathons',
+        metadata: {
+          teamId,
+          teamName: team.name,
+          scoreTotal: score.total,
+          reviewerName,
+        }
+      }).catch(err => console.warn('Could not dispatch results_published notification:', err));
     });
 
     return teams[index];

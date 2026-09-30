@@ -9,6 +9,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { IdeaBoxPage } from './pages/IdeaBoxPage';
 import { HackathonPortalPage } from './pages/HackathonPortalPage';
 import { ForumPage } from './pages/ForumPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { AuthModal } from './components/Auth/AuthModal';
 
 export const App: React.FC = () => {
@@ -38,6 +39,7 @@ export const App: React.FC = () => {
           <Route path="/forum" element={<ForumPage />} />
           <Route path="/newsletter" element={<NewsletterPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/kyc" element={<Navigate to="/profile?tab=kyc" replace />} />
           <Route path="/admin" element={<AdminPage />} />
 

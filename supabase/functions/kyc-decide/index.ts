@@ -84,6 +84,23 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // 5. Invoke send-notification Edge Function for KYC decision
+    try {
+      const notifType = validated.decision === 'verified' ? 'kyc_approved' : 'kyc_rejected';
+      await supabaseClient.functions.invoke('send-notification', {
+        body: {
+          userId: validated.userId,
+          type: notifType,
+          metadata: {
+            rejection_reason: validated.rejection_reason || null,
+            remarks: validated.remarks || null,
+          }
+        }
+      });
+    } catch (notifErr) {
+      console.warn("Could not dispatch notification in kyc-decide:", notifErr);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

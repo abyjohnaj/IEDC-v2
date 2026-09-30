@@ -563,4 +563,53 @@ export interface TeamMatchSuggestion {
   suggestedRole: string;
 }
 
+// ==========================================
+// Unified Notification System Types
+// ==========================================
+
+export type NotificationType =
+  | 'kyc_approved'
+  | 'kyc_rejected'
+  | 'idea_status_changed'
+  | 'team_join_request'
+  | 'hackathon_deadline_24h'
+  | 'results_published';
+
+export type NotificationChannel = 'in_app' | 'email';
+export type NotificationCategory = 'kyc' | 'idea' | 'team' | 'hackathon' | 'general';
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  link?: string;
+  readAt?: string | null;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+export interface NotificationPreference {
+  id?: string;
+  userId: string;
+  channel: NotificationChannel;
+  type: NotificationCategory;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SendNotificationPayload {
+  userId: string;
+  type: NotificationType;
+  title?: string;
+  body?: string;
+  link?: string;
+  email?: string;
+  recipientName?: string;
+  metadata?: Record<string, any>;
+}
+
+
 

@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Moon, Sun, Menu, X, BookOpen, User as UserIcon, ShieldCheck, Clock, AlertCircle, LogOut, Lightbulb, Settings, Flame } from 'lucide-react';
+import {
+  Moon, Sun, Menu, X, BookOpen, User as UserIcon, ShieldCheck, Clock,
+  AlertCircle, LogOut, Lightbulb, Settings, Flame, Bell, CheckCheck
+} from 'lucide-react';
 import { authService, openAuthModal } from '../../services/authService';
 import { User } from '../../types';
+import {
+  useNotifications,
+  useUnreadNotificationsCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead
+} from '../../hooks/useNotifications';
+import { formatTimeAgo } from '../../utils/formatTime';
+import '../../styles/notifications.css';
 
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
@@ -11,6 +22,15 @@ export const Navbar: React.FC = () => {
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [userDropdownOpen, setUserDropdownOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notifications State & Hooks
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState<boolean>(false);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: notifications = [] } = useNotifications(user?.id);
+  const { data: unreadCount = 0 } = useUnreadNotificationsCount(user?.id);
+  const markReadMutation = useMarkNotificationRead(user?.id);
+  const markAllReadMutation = useMarkAllNotificationsRead(user?.id);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,10 +51,13 @@ export const Navbar: React.FC = () => {
       setUser(newUser);
     });
 
-    // Handle outside clicks to close dropdown
+    // Handle outside clicks to close dropdowns
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setUserDropdownOpen(false);
+      }
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target as Node)) {
+        setNotifDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -103,6 +126,83 @@ export const Navbar: React.FC = () => {
             Eureka 3D Shelf
           </Link>
 
+          {/* Real-time Notifications Bell with Badge */}
+          {user && (
+            <div style={{ position: 'relative' }} ref={notifDropdownRef}>
+              <button
+                type="button"
+                className="nav-notif-btn"
+                onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                aria-label="Notifications"
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="nav-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+
+              {notifDropdownOpen && (
+                <div className="notif-dropdown">
+                  <div className="notif-dropdown-header">
+                    <span className="notif-dropdown-title">
+                      <Bell size={15} color="var(--accent-cyan)" />
+                      Notifications {unreadCount > 0 && `(${unreadCount})`}
+                    </span>
+                    {unreadCount > 0 && (
+                      <button
+                        className="notif-mark-read-btn"
+                        onClick={() => markAllReadMutation.mutate()}
+                      >
+                        <CheckCheck size={13} style={{ display: 'inline', marginRight: '3px' }} />
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="notif-dropdown-list">
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      notifications.slice(0, 5).map(n => (
+                        <div
+                          key={n.id}
+                          className={`notif-dropdown-item ${!n.readAt ? 'unread' : ''}`}
+                          onClick={() => {
+                            if (!n.readAt) {
+                              markReadMutation.mutate({ notificationId: n.id });
+                            }
+                            setNotifDropdownOpen(false);
+                            if (n.link) navigate(n.link);
+                          }}
+                        >
+                          <div className="notif-item-content">
+                            <div className="notif-item-title">{n.title}</div>
+                            <div className="notif-item-body">{n.body}</div>
+                            <div className="notif-item-time">{formatTimeAgo(n.createdAt)}</div>
+                          </div>
+                          {!n.readAt && <span className="notif-unread-dot" />}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="notif-dropdown-footer">
+                    <Link
+                      to="/notifications"
+                      className="notif-dropdown-view-all"
+                      onClick={() => setNotifDropdownOpen(false)}
+                    >
+                      View all notifications &rarr;
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* User Auth Pill / Sign In Trigger */}
           {user ? (
             <div className="nav-user-dropdown" ref={dropdownRef}>
@@ -139,6 +239,15 @@ export const Navbar: React.FC = () => {
                   >
                     <UserIcon size={15} />
                     <span>My Profile & Portfolio</span>
+                  </Link>
+
+                  <Link
+                    to="/notifications"
+                    className="nav-user-menu-item"
+                    onClick={() => setUserDropdownOpen(false)}
+                  >
+                    <Bell size={15} />
+                    <span>Notifications {unreadCount > 0 ? `(${unreadCount})` : ''}</span>
                   </Link>
 
                   <Link

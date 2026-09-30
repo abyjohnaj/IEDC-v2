@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { getSupabase } from './supabaseClient';
 import { validateIdeaTransition } from '../utils/ideaTransitionRules';
+import { notificationService } from './notificationService';
 
 // Rich initial startup ideas for BMCE Innovators
 export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
@@ -471,6 +472,28 @@ export const ideaBoxService = {
       if (error) {
         throw new Error(error.message);
       }
+    }
+
+    // Dispatch in-app and email notification to idea author
+    try {
+      if (currentIdea.authorId) {
+        await notificationService.sendNotification({
+          userId: currentIdea.authorId,
+          type: 'idea_status_changed',
+          title: `💡 Idea Status Updated: "${currentIdea.title}"`,
+          body: `Your innovation proposal has transitioned to "${newStatus}". ${reason ? `Notes: "${reason}".` : 'Check the portal for next incubation steps.'}`,
+          link: `/ideabox?idea=${currentIdea.id}`,
+          metadata: {
+            ideaId: currentIdea.id,
+            ideaTitle: currentIdea.title,
+            oldStatus: currentIdea.status,
+            newStatus,
+            reason: reason || null,
+          }
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Could not dispatch idea status notification:', notifErr);
     }
   },
 
