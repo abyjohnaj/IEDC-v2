@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navigation/Navbar';
 import { Footer } from '../components/Navigation/Footer';
-import { useIdeas, useVoteIdea, useSubmitIdea, useAddIdeaComment } from '../hooks/useIdeas';
+import { 
+  useIdeas, 
+  useVoteIdea, 
+  useSubmitIdea, 
+  useAddIdeaComment,
+  useIdeaDraft,
+  useSaveIdeaDraft,
+  useDeleteIdeaDraft
+} from '../hooks/useIdeas';
 import { authService, openAuthModal } from '../services/authService';
 import { IdeaBoxSubmission, IdeaStage, User } from '../types';
+import { MilestoneTracker } from '../components/IdeaBox/MilestoneTracker';
 import {
   Lightbulb,
   Search,
@@ -20,7 +29,9 @@ import {
   Clock,
   Award,
   TrendingUp,
-  Tag
+  Tag,
+  Flag,
+  Cloud
 } from 'lucide-react';
 import '../styles/ideabox.css';
 
@@ -41,6 +52,7 @@ export const IdeaBoxPage: React.FC = () => {
   const [selectedStage, setSelectedStage] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [expandedCommentsId, setExpandedCommentsId] = useState<string | null>(null);
+  const [expandedMilestonesId, setExpandedMilestonesId] = useState<string | null>(null);
   const [commentInputMap, setCommentInputMap] = useState<Record<string, string>>({});
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
@@ -62,6 +74,12 @@ export const IdeaBoxPage: React.FC = () => {
   const submitMutation = useSubmitIdea();
   const commentMutation = useAddIdeaComment();
 
+  // Server-side Draft Autosave Hooks
+  const { data: serverDraft } = useIdeaDraft();
+  const saveDraftMutation = useSaveIdeaDraft();
+  const deleteDraftMutation = useDeleteIdeaDraft();
+  const [draftSavedTime, setDraftSavedTime] = useState<string | null>(null);
+
   // New Idea Form State
   const [title, setTitle] = useState('');
   const [domain, setDomain] = useState('AgriTech & AI');
@@ -79,6 +97,44 @@ export const IdeaBoxPage: React.FC = () => {
     const unsubAuth = authService.onAuthStateChange(u => setUser(u));
     return () => unsubAuth();
   }, []);
+
+  // Restore server-side draft when opening submit modal
+  useEffect(() => {
+    if (isSubmitModalOpen && serverDraft && !title && !problemStatement) {
+      if (serverDraft.title) setTitle(serverDraft.title);
+      if (serverDraft.domain) setDomain(serverDraft.domain);
+      if (serverDraft.stage) setStage(serverDraft.stage);
+      if (serverDraft.elevatorPitch) setElevatorPitch(serverDraft.elevatorPitch);
+      if (serverDraft.problemStatement) setProblemStatement(serverDraft.problemStatement);
+      if (serverDraft.proposedSolution) setProposedSolution(serverDraft.proposedSolution);
+      if (serverDraft.techStackInput) setTechStackInput(serverDraft.techStackInput);
+      if (serverDraft.targetAudience) setTargetAudience(serverDraft.targetAudience);
+      if (serverDraft.estimatedBudget) setEstimatedBudget(serverDraft.estimatedBudget);
+    }
+  }, [isSubmitModalOpen, serverDraft]);
+
+  // Debounced cloud autosave
+  useEffect(() => {
+    if (!isSubmitModalOpen || !user) return;
+    if (!title.trim() && !problemStatement.trim()) return;
+
+    const timeout = setTimeout(() => {
+      saveDraftMutation.mutate({
+        title,
+        domain,
+        stage,
+        elevatorPitch,
+        problemStatement,
+        proposedSolution,
+        techStackInput,
+        targetAudience,
+        estimatedBudget,
+      });
+      setDraftSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [title, domain, stage, elevatorPitch, problemStatement, proposedSolution, techStackInput, targetAudience, estimatedBudget, isSubmitModalOpen, user]);
 
   const handleUpvote = (ideaId: string) => {
     if (!user) {
@@ -152,6 +208,9 @@ export const IdeaBoxPage: React.FC = () => {
         authorDepartment: user.department
       });
 
+      // Clear server-side draft after successful submission
+      await deleteDraftMutation.mutateAsync();
+
       setIsSubmitModalOpen(false);
       setTitle('');
       setElevatorPitch('');
@@ -160,6 +219,7 @@ export const IdeaBoxPage: React.FC = () => {
       setTechStackInput('');
       setTargetAudience('');
       setEstimatedBudget('');
+      setDraftSavedTime(null);
       setSuccessToast('Your startup idea has been submitted to the BMCE IdeaBox & Nodal Evaluation Queue!');
       setTimeout(() => setSuccessToast(null), 5000);
     } catch (err: any) {
@@ -370,6 +430,7 @@ export const IdeaBoxPage: React.FC = () => {
             {filteredIdeas.map(idea => {
               const hasUpvoted = user ? idea.upvoters?.includes(user.id) : false;
               const isCommentsOpen = expandedCommentsId === idea.id;
+              const isMilestonesOpen = expandedMilestonesId === idea.id;
 
             return (
               <div key={idea.id} className="ideabox-card">
@@ -474,12 +535,21 @@ export const IdeaBoxPage: React.FC = () => {
                     </button>
 
                     <button
-                      className="ideabox-action-btn comment"
+                      className={`ideabox-action-btn comment ${isCommentsOpen ? 'active' : ''}`}
                       onClick={() => setExpandedCommentsId(isCommentsOpen ? null : idea.id)}
                       title="Discussion & Feedback"
                     >
                       <MessageSquare size={15} />
                       <span>{idea.commentsCount || idea.comments?.length || 0}</span>
+                    </button>
+
+                    <button
+                      className={`ideabox-action-btn ${isMilestonesOpen ? 'active' : ''}`}
+                      onClick={() => setExpandedMilestonesId(isMilestonesOpen ? null : idea.id)}
+                      title="Incubation Milestones & Funding Tranches"
+                    >
+                      <Flag size={15} />
+                      <span>Milestones</span>
                     </button>
                   </div>
                 </div>
@@ -533,6 +603,16 @@ export const IdeaBoxPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Expandable Milestones Tracker */}
+                {isMilestonesOpen && (
+                  <div style={{ padding: '0 1.25rem 1.25rem' }}>
+                    <MilestoneTracker
+                      ideaId={idea.id}
+                      canEdit={Boolean(user && (user.id === idea.authorId || user.role === 'Admin'))}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -551,6 +631,14 @@ export const IdeaBoxPage: React.FC = () => {
                   Pitch New Startup Idea
                 </h3>
               </div>
+
+              {user && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.74rem', color: '#10b981', marginLeft: 'auto', marginRight: '1rem' }}>
+                  <Cloud size={14} />
+                  <span>{saveDraftMutation.isPending ? 'Saving to cloud...' : (draftSavedTime ? `Autosaved (${draftSavedTime})` : 'Autosaved to cloud')}</span>
+                </div>
+              )}
+
               <button
                 className="ideabox-modal-close"
                 onClick={() => setIsSubmitModalOpen(false)}

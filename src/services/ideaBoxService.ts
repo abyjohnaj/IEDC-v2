@@ -1,5 +1,19 @@
-import { IdeaBoxSubmission, IdeaComment, IdeaStatus, IdeaStage } from '../types';
+import { 
+  IdeaBoxSubmission, 
+  IdeaComment, 
+  IdeaStatus, 
+  IdeaStage,
+  ReviewCriterion,
+  IdeaReview,
+  IdeaReviewScore,
+  IdeaAggregateScore,
+  Mentor,
+  MentorAssignment,
+  IdeaMilestone,
+  IdeaDraftData
+} from '../types';
 import { getSupabase } from './supabaseClient';
+import { validateIdeaTransition } from '../utils/ideaTransitionRules';
 
 // Rich initial startup ideas for BMCE Innovators
 export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
@@ -430,5 +444,441 @@ export const ideaBoxService = {
       if (error) throw new Error(error.message);
     }
     return true;
+  },
+
+  /**
+   * Status transitions via RPC set_idea_status with client-side & server-side validation
+   */
+  async setIdeaStatus(ideaId: string, newStatus: IdeaStatus, reason?: string): Promise<void> {
+    const currentIdea = await this.getIdeaById(ideaId);
+    if (!currentIdea) {
+      throw new Error(`Idea ${ideaId} not found.`);
+    }
+
+    const check = validateIdeaTransition(currentIdea.status, newStatus);
+    if (!check.valid) {
+      throw new Error(check.error);
+    }
+
+    const sb = getSupabase();
+    if (sb) {
+      const { data, error } = await sb.rpc('set_idea_status', {
+        p_idea_id: ideaId,
+        p_new_status: newStatus,
+        p_reason: reason || null,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    }
+  },
+
+  /**
+   * Fetch rubric criteria
+   */
+  async getReviewCriteria(): Promise<ReviewCriterion[]> {
+    const sb = getSupabase();
+    if (!sb) {
+      return [
+        { id: 'crit-problem', name: 'Problem', weight: 1.0, description: 'Clarity, severity, and urgency of the problem' },
+        { id: 'crit-feasibility', name: 'Feasibility', weight: 1.0, description: 'Technical feasibility and realistic execution plan' },
+        { id: 'crit-impact', name: 'Impact', weight: 1.0, description: 'Market potential and societal/economic impact' },
+        { id: 'crit-team', name: 'Team', weight: 1.0, description: 'Team capability and domain execution bandwidth' },
+      ];
+    }
+
+    const { data, error } = await sb
+      .from('review_criteria')
+      .select('*')
+      .order('weight', { ascending: false });
+
+    if (error) {
+      console.warn('Failed to fetch review criteria:', error);
+      return [];
+    }
+
+    return (data || []).map((row: { id: string; name: string; weight: number; description?: string }) => ({
+      id: row.id,
+      name: row.name,
+      weight: Number(row.weight),
+      description: row.description,
+    }));
+  },
+
+  /**
+   * Assign reviewers to an idea (admin only)
+   */
+  async assignReviewers(ideaId: string, reviewerIds: string[]): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { error } = await sb.rpc('assign_reviewers', {
+      p_idea_id: ideaId,
+      p_reviewer_ids: reviewerIds,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  /**
+   * Fetch all reviews and their rubric scores for an idea
+   */
+  async getIdeaReviews(ideaId: string): Promise<IdeaReview[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb
+      .from('idea_reviews')
+      .select(`
+        id,
+        idea_id,
+        reviewer_id,
+        assigned_by,
+        assigned_at,
+        submitted_at,
+        overall_feedback,
+        reviewer:profiles!reviewer_id(full_name, avatar_url, department),
+        scores:idea_review_scores(
+          id,
+          review_id,
+          criterion_id,
+          score,
+          comment,
+          criterion:review_criteria(name, weight)
+        )
+      `)
+      .eq('idea_id', ideaId);
+
+    if (error) {
+      console.warn('Failed to fetch reviews:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      ideaId: row.idea_id,
+      reviewerId: row.reviewer_id,
+      reviewerName: row.reviewer?.full_name || 'Anonymous Reviewer',
+      reviewerAvatar: row.reviewer?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      reviewerDepartment: row.reviewer?.department,
+      assignedBy: row.assigned_by,
+      assignedAt: row.assigned_at,
+      submittedAt: row.submitted_at,
+      overallFeedback: row.overall_feedback,
+      scores: (row.scores || []).map((s: any) => ({
+        id: s.id,
+        reviewId: s.review_id,
+        criterionId: s.criterion_id,
+        criterionName: s.criterion?.name,
+        criterionWeight: s.criterion?.weight,
+        score: s.score,
+        comment: s.comment,
+      })),
+    }));
+  },
+
+  /**
+   * Submit rubric review evaluation
+   */
+  async submitIdeaReview(
+    reviewId: string,
+    overallFeedback: string,
+    scores: { criterion_id: string; score: number; comment?: string }[]
+  ): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { error } = await sb.rpc('submit_idea_review', {
+      p_review_id: reviewId,
+      p_overall_feedback: overallFeedback,
+      p_scores: scores,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  /**
+   * Fetch aggregate rubric score for an idea
+   */
+  async getIdeaAggregateScore(ideaId: string): Promise<IdeaAggregateScore | null> {
+    const sb = getSupabase();
+    if (!sb) return null;
+
+    const { data, error } = await sb
+      .from('idea_aggregate_scores')
+      .select('*')
+      .eq('idea_id', ideaId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      ideaId: data.idea_id,
+      totalAssignedReviews: data.total_assigned_reviews || 0,
+      completedReviews: data.completed_reviews || 0,
+      aggregateScore: Number(data.aggregate_score || 0),
+      roundedScore: Number(data.rounded_score || 0),
+    };
+  },
+
+  /**
+   * Fetch idea milestones
+   */
+  async getIdeaMilestones(ideaId: string): Promise<IdeaMilestone[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb
+      .from('idea_milestones')
+      .select('*')
+      .eq('idea_id', ideaId)
+      .order('due_date', { ascending: true });
+
+    if (error) {
+      console.warn('Failed to fetch milestones:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      ideaId: row.idea_id,
+      title: row.title,
+      description: row.description,
+      dueDate: row.due_date,
+      status: row.status,
+      fundingTranche: Number(row.funding_tranche || 0),
+      completedAt: row.completed_at,
+      verifiedBy: row.verified_by,
+      createdAt: row.created_at,
+    }));
+  },
+
+  /**
+   * Create idea milestone
+   */
+  async createIdeaMilestone(milestone: Omit<IdeaMilestone, 'id' | 'createdAt'>): Promise<IdeaMilestone> {
+    const sb = getSupabase();
+    const id = `ms_${Date.now()}`;
+    const createdAt = new Date().toISOString();
+
+    if (sb) {
+      const { data, error } = await sb.from('idea_milestones').insert([{
+        idea_id: milestone.ideaId,
+        title: milestone.title,
+        description: milestone.description,
+        due_date: milestone.dueDate,
+        status: milestone.status,
+        funding_tranche: milestone.fundingTranche,
+      }]).select().single();
+
+      if (error) throw new Error(error.message);
+      if (data) {
+        return {
+          id: data.id,
+          ideaId: data.idea_id,
+          title: data.title,
+          description: data.description,
+          dueDate: data.due_date,
+          status: data.status,
+          fundingTranche: Number(data.funding_tranche || 0),
+          createdAt: data.created_at,
+        };
+      }
+    }
+
+    return {
+      ...milestone,
+      id,
+      createdAt,
+    };
+  },
+
+  /**
+   * Update milestone status or details
+   */
+  async updateIdeaMilestone(
+    milestoneId: string,
+    updates: Partial<Pick<IdeaMilestone, 'status' | 'completedAt' | 'title' | 'description' | 'fundingTranche'>>
+  ): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const payload: Record<string, unknown> = {};
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.fundingTranche !== undefined) payload.funding_tranche = updates.fundingTranche;
+    if (updates.status === 'completed') payload.completed_at = new Date().toISOString();
+
+    const { error } = await sb.from('idea_milestones').update(payload).eq('id', milestoneId);
+    if (error) throw new Error(error.message);
+  },
+
+  /**
+   * Fetch all mentors
+   */
+  async getMentors(): Promise<Mentor[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb
+      .from('mentors')
+      .select('*, profile:profiles!user_id(full_name, avatar_url, department)')
+      .eq('is_active', true);
+
+    if (error) {
+      console.warn('Failed to fetch mentors:', error);
+      return [];
+    }
+
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      userId: m.user_id,
+      fullName: m.profile?.full_name || 'Faculty Mentor',
+      avatar: m.profile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+      department: m.profile?.department,
+      expertise: m.expertise || [],
+      designation: m.designation,
+      organization: m.organization,
+      bio: m.bio,
+      maxActiveIdeas: m.max_active_ideas || 5,
+      isActive: m.is_active,
+    }));
+  },
+
+  /**
+   * Fetch mentor assignments for an idea
+   */
+  async getIdeaMentorAssignments(ideaId: string): Promise<MentorAssignment[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb
+      .from('mentor_assignments')
+      .select(`
+        *,
+        mentor:mentors(
+          id,
+          user_id,
+          expertise,
+          designation,
+          organization,
+          profile:profiles!user_id(full_name, avatar_url, department)
+        )
+      `)
+      .eq('idea_id', ideaId);
+
+    if (error) {
+      console.warn('Failed to fetch mentor assignments:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      ideaId: row.idea_id,
+      mentorId: row.mentor_id,
+      mentor: row.mentor ? {
+        id: row.mentor.id,
+        userId: row.mentor.user_id,
+        fullName: row.mentor.profile?.full_name || 'Mentor',
+        avatar: row.mentor.profile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+        department: row.mentor.profile?.department,
+        expertise: row.mentor.expertise || [],
+        designation: row.mentor.designation,
+        organization: row.mentor.organization,
+        maxActiveIdeas: 5,
+        isActive: true,
+      } : undefined,
+      assignedBy: row.assigned_by,
+      assignedAt: row.assigned_at,
+      status: row.status,
+      responseNotes: row.response_notes,
+      respondedAt: row.responded_at,
+    }));
+  },
+
+  /**
+   * Assign a mentor to an idea
+   */
+  async assignMentor(ideaId: string, mentorId: string): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { error } = await sb.from('mentor_assignments').insert([{
+      idea_id: ideaId,
+      mentor_id: mentorId,
+    }]);
+
+    if (error) throw new Error(error.message);
+  },
+
+  /**
+   * Respond to mentor assignment (accept / decline)
+   */
+  async respondMentorAssignment(assignmentId: string, decision: 'accepted' | 'declined', notes?: string): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { error } = await sb.rpc('respond_mentor_assignment', {
+      p_assignment_id: assignmentId,
+      p_decision: decision,
+      p_notes: notes || null,
+    });
+
+    if (error) throw new Error(error.message);
+  },
+
+  /**
+   * Server-side Draft Autosave (replaces localStorage)
+   */
+  async saveIdeaDraft(draftData: IdeaDraftData): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { error } = await sb.rpc('autosave_idea_draft', {
+      p_draft_data: draftData,
+    });
+
+    if (error) {
+      console.warn('Failed to autosave idea draft:', error.message);
+    }
+  },
+
+  /**
+   * Retrieve server-side draft
+   */
+  async getIdeaDraft(): Promise<IdeaDraftData | null> {
+    const sb = getSupabase();
+    if (!sb) return null;
+
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await sb
+      .from('idea_drafts')
+      .select('draft_data')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data.draft_data as IdeaDraftData;
+  },
+
+  /**
+   * Delete draft upon submission
+   */
+  async deleteIdeaDraft(): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return;
+
+    await sb.from('idea_drafts').delete().eq('user_id', user.id);
   }
 };

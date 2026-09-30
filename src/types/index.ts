@@ -226,6 +226,103 @@ export interface IdeaBoxSubmission {
   updatedAt?: string;
 }
 
+export interface ReviewCriterion {
+  id: string;
+  name: string;
+  weight: number;
+  description?: string;
+}
+
+export interface IdeaReviewScore {
+  id?: string;
+  reviewId: string;
+  criterionId: string;
+  criterionName?: string;
+  criterionWeight?: number;
+  score: number; // 1-5
+  comment?: string;
+}
+
+export interface IdeaReview {
+  id: string;
+  ideaId: string;
+  reviewerId: string;
+  reviewerName?: string;
+  reviewerAvatar?: string;
+  reviewerDepartment?: string;
+  assignedBy?: string;
+  assignedAt: string;
+  submittedAt?: string;
+  overallFeedback?: string;
+  scores?: IdeaReviewScore[];
+}
+
+export interface IdeaAggregateScore {
+  ideaId: string;
+  totalAssignedReviews: number;
+  completedReviews: number;
+  aggregateScore: number;
+  roundedScore: number;
+}
+
+export interface Mentor {
+  id: string;
+  userId: string;
+  fullName: string;
+  avatar: string;
+  department?: string;
+  expertise: string[];
+  designation?: string;
+  organization?: string;
+  bio?: string;
+  maxActiveIdeas: number;
+  isActive: boolean;
+}
+
+export interface MentorAssignment {
+  id: string;
+  ideaId: string;
+  mentorId: string;
+  mentor?: Mentor;
+  assignedBy?: string;
+  assignedAt: string;
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
+  responseNotes?: string;
+  respondedAt?: string;
+}
+
+export interface IdeaMilestone {
+  id: string;
+  ideaId: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
+  fundingTranche: number;
+  completedAt?: string;
+  verifiedBy?: string;
+  createdAt: string;
+}
+
+export interface IdeaDraftData {
+  title?: string;
+  domain?: string;
+  stage?: IdeaStage;
+  elevatorPitch?: string;
+  problemStatement?: string;
+  proposedSolution?: string;
+  techStackInput?: string;
+  targetAudience?: string;
+  estimatedBudget?: string;
+}
+
+export interface IdeaDraft {
+  id?: string;
+  userId: string;
+  draftData: IdeaDraftData;
+  updatedAt: string;
+}
+
 // ==========================================
 // Hackathon & Lablab-style Team Management
 // ==========================================

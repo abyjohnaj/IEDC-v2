@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useIdeas, useEvaluateIdea, useDeleteIdea } from '../../hooks/useIdeas';
-import { IdeaBoxSubmission, IdeaStatus } from '../../types';
+import { useIdeas, useDeleteIdea } from '../../hooks/useIdeas';
+import { IdeaBoxSubmission } from '../../types';
+import { IdeaRubricEvaluationModal } from './IdeaRubricEvaluationModal';
 import {
   Lightbulb,
   Search,
@@ -25,7 +26,6 @@ interface AdminIdeaBoxSectionProps {
 
 export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNotify }) => {
   const { data: ideas = [], isLoading, isError, error, refetch } = useIdeas();
-  const evaluateMutation = useEvaluateIdea();
   const deleteMutation = useDeleteIdea();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,41 +34,9 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
 
   // Evaluation modal
   const [evaluatingIdea, setEvaluatingIdea] = useState<IdeaBoxSubmission | null>(null);
-  const [evalStatus, setEvalStatus] = useState<IdeaStatus>('Incubation Approved');
-  const [evalRating, setEvalRating] = useState<number>(5);
-  const [evalIncubatorTrack, setEvalIncubatorTrack] = useState<string>('Robotics & Hardware Prototyping Lab (Bay 2)');
-  const [evalFeedback, setEvalFeedback] = useState<string>('');
-  const [evalReviewer, setEvalReviewer] = useState<string>('Dr. Preetha M. (IEDC Nodal Officer)');
 
   const handleOpenEvaluationModal = (idea: IdeaBoxSubmission) => {
     setEvaluatingIdea(idea);
-    setEvalStatus(idea.status === 'Pending' ? 'Incubation Approved' : idea.status);
-    setEvalRating(idea.adminRating || 5);
-    setEvalIncubatorTrack(idea.incubatorTrackAssigned || 'Robotics & Hardware Prototyping Lab (Bay 2)');
-    setEvalFeedback(idea.adminFeedback || 'Promising student startup initiative. Approved for pre-incubation prototyping space and lab equipment.');
-  };
-
-  const handleSaveEvaluation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!evaluatingIdea) return;
-
-    try {
-      await evaluateMutation.mutateAsync({
-        ideaId: evaluatingIdea.id,
-        review: {
-          status: evalStatus,
-          rating: evalRating,
-          feedback: evalFeedback,
-          incubatorTrack: evalIncubatorTrack,
-          reviewerName: evalReviewer
-        }
-      });
-
-      setEvaluatingIdea(null);
-      onNotify(`✅ Official evaluation & feedback published for "${evaluatingIdea.title}"!`);
-    } catch (err: unknown) {
-      onNotify(`❌ Failed to save evaluation: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
   };
 
   const handleDelete = async (ideaId: string, title: string) => {
@@ -377,103 +345,13 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
         </table>
       </div>
 
-      {/* EVALUATION & FEEDBACK MODAL */}
+      {/* MULTI-REVIEWER RUBRIC & GOVERNANCE MODAL */}
       {evaluatingIdea && (
-        <div className="modal-backdrop" onClick={() => setEvaluatingIdea(null)}>
-          <div className="modal-card" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-              <div>
-                <h3 style={{ margin: 0, fontWeight: 800 }}>
-                  Nodal Evaluation: {evaluatingIdea.title}
-                </h3>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  Innovator: {evaluatingIdea.authorName} ({evaluatingIdea.authorDepartment || 'BMCE'})
-                </span>
-              </div>
-              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setEvaluatingIdea(null)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEvaluation} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Incubation Status Decision</label>
-                  <select
-                    className="form-input"
-                    value={evalStatus}
-                    onChange={e => setEvalStatus(e.target.value as IdeaStatus)}
-                  >
-                    <option value="Incubation Approved">Incubation Approved (Full Pass)</option>
-                    <option value="Mentorship Assigned">Mentorship Assigned</option>
-                    <option value="Shortlisted">Shortlisted for KSUM Idea Grant</option>
-                    <option value="Under Review">Under Review / Need Working Prototype</option>
-                    <option value="Needs Revision">Needs Revision & Market Re-alignment</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Evaluation Rating (1 to 5 Stars)</label>
-                  <select
-                    className="form-input"
-                    value={evalRating}
-                    onChange={e => setEvalRating(Number(e.target.value))}
-                  >
-                    <option value={5}>⭐⭐⭐⭐⭐ (5/5) Outstanding</option>
-                    <option value={4}>⭐⭐⭐⭐ (4/5) Very Promising</option>
-                    <option value={3}>⭐⭐⭐ (3/5) Feasible Concept</option>
-                    <option value={2}>⭐⭐ (2/5) Early Stage</option>
-                    <option value={1}>⭐ (1/5) Needs Fundamental Rework</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Assigned Prototyping Bay / Incubation Track</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Robotics Prototyping Lab (Bay 2), CleanTech Hub"
-                  value={evalIncubatorTrack}
-                  onChange={e => setEvalIncubatorTrack(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Official Admin Evaluation Feedback *</label>
-                <textarea
-                  rows={4}
-                  required
-                  className="form-textarea"
-                  placeholder="Write clear, encouraging feedback explaining the evaluation verdict, mentor assigned, and next steps for the innovator..."
-                  value={evalFeedback}
-                  onChange={e => setEvalFeedback(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Reviewed By (Nodal Officer Signature)</label>
-                <input
-                  type="text"
-                  required
-                  className="form-input"
-                  value={evalReviewer}
-                  onChange={e => setEvalReviewer(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', marginTop: '0.5rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setEvaluatingIdea(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <ShieldCheck size={15} /> Publish Evaluation & Feedback
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <IdeaRubricEvaluationModal
+          idea={evaluatingIdea}
+          onClose={() => setEvaluatingIdea(null)}
+          onNotify={onNotify}
+        />
       )}
     </div>
   );
