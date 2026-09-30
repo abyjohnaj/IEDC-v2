@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ideaBoxService } from '../../services/ideaBoxService';
+import React, { useState } from 'react';
+import { useIdeas, useEvaluateIdea, useDeleteIdea } from '../../hooks/useIdeas';
 import { IdeaBoxSubmission, IdeaStatus } from '../../types';
 import {
   Lightbulb,
@@ -14,6 +14,8 @@ import {
   Edit3,
   ThumbsUp,
   MessageSquare,
+  AlertCircle,
+  RotateCw,
   X
 } from 'lucide-react';
 
@@ -22,7 +24,10 @@ interface AdminIdeaBoxSectionProps {
 }
 
 export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNotify }) => {
-  const [ideas, setIdeas] = useState<IdeaBoxSubmission[]>([]);
+  const { data: ideas = [], isLoading, isError, error, refetch } = useIdeas();
+  const evaluateMutation = useEvaluateIdea();
+  const deleteMutation = useDeleteIdea();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [domainFilter, setDomainFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -34,17 +39,6 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
   const [evalIncubatorTrack, setEvalIncubatorTrack] = useState<string>('Robotics & Hardware Prototyping Lab (Bay 2)');
   const [evalFeedback, setEvalFeedback] = useState<string>('');
   const [evalReviewer, setEvalReviewer] = useState<string>('Dr. Preetha M. (IEDC Nodal Officer)');
-
-  const refresh = async () => {
-    const list = await ideaBoxService.getAllIdeas();
-    setIdeas(list);
-  };
-
-  useEffect(() => {
-    refresh();
-    const unsub = ideaBoxService.subscribe(() => refresh());
-    return () => unsub();
-  }, []);
 
   const handleOpenEvaluationModal = (idea: IdeaBoxSubmission) => {
     setEvaluatingIdea(idea);
@@ -58,24 +52,33 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
     e.preventDefault();
     if (!evaluatingIdea) return;
 
-    await ideaBoxService.adminReviewIdea(evaluatingIdea.id, {
-      status: evalStatus,
-      rating: evalRating,
-      feedback: evalFeedback,
-      incubatorTrack: evalIncubatorTrack,
-      reviewerName: evalReviewer
-    });
+    try {
+      await evaluateMutation.mutateAsync({
+        ideaId: evaluatingIdea.id,
+        review: {
+          status: evalStatus,
+          rating: evalRating,
+          feedback: evalFeedback,
+          incubatorTrack: evalIncubatorTrack,
+          reviewerName: evalReviewer
+        }
+      });
 
-    setEvaluatingIdea(null);
-    onNotify(`✅ Official evaluation & feedback published for "${evaluatingIdea.title}"!`);
-    refresh();
+      setEvaluatingIdea(null);
+      onNotify(`✅ Official evaluation & feedback published for "${evaluatingIdea.title}"!`);
+    } catch (err: unknown) {
+      onNotify(`❌ Failed to save evaluation: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
   const handleDelete = async (ideaId: string, title: string) => {
     if (confirm(`Are you sure you want to permanently delete idea "${title}"?`)) {
-      await ideaBoxService.deleteIdea(ideaId);
-      onNotify(`🗑️ Idea "${title}" deleted.`);
-      refresh();
+      try {
+        await deleteMutation.mutateAsync(ideaId);
+        onNotify(`🗑️ Idea "${title}" deleted.`);
+      } catch (err: unknown) {
+        onNotify(`❌ Failed to delete idea: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     }
   };
 
@@ -183,6 +186,38 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
         </div>
       </div>
 
+      {/* Error Alert */}
+      {isError && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '1rem',
+            color: '#f87171'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <AlertCircle size={20} />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+              Failed to load pitches: {error instanceof Error ? error.message : 'Network error'}
+            </span>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="btn btn-secondary"
+            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <RotateCw size={14} /> Retry
+          </button>
+        </div>
+      )}
+
       {/* Ideas Table */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
@@ -197,7 +232,34 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
             </tr>
           </thead>
           <tbody>
-            {filteredIdeas.map(idea => (
+            {isLoading ? (
+              [1, 2, 3, 4].map(idx => (
+                <tr key={`skeleton-${idx}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <td colSpan={6} style={{ padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', animation: 'pulse 1.5s infinite' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ height: '14px', width: '30%', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', marginBottom: '0.5rem', animation: 'pulse 1.5s infinite' }} />
+                        <div style={{ height: '10px', width: '60%', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : filteredIdeas.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <Lightbulb size={36} style={{ opacity: 0.3, marginBottom: '0.75rem', display: 'inline-block' }} />
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    No ideas match the current filters
+                  </div>
+                  <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                    Try changing the search query or status filter.
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredIdeas.map(idea => (
               <tr key={idea.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                 {/* Title & Domain */}
                 <td style={{ padding: '1rem', maxWidth: '280px' }}>
@@ -310,7 +372,7 @@ export const AdminIdeaBoxSection: React.FC<AdminIdeaBoxSectionProps> = ({ onNoti
                   </div>
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

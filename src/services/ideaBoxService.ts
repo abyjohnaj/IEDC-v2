@@ -1,10 +1,7 @@
 import { IdeaBoxSubmission, IdeaComment, IdeaStatus, IdeaStage } from '../types';
 import { getSupabase } from './supabaseClient';
 
-const IDEABOX_STORAGE_KEY = 'iedc_ideabox_submissions';
-const IDEABOX_EVENT_NAME = 'iedc_ideabox_updated';
-
-// Rich, realistic initial startup ideas for BMCE Innovators
+// Rich initial startup ideas for BMCE Innovators
 export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
   {
     id: 'idea-agridrone-01',
@@ -25,7 +22,7 @@ export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
     authorDepartment: 'Computer Science & Engineering',
     upvotes: 42,
     upvoters: ['usr_anjana_02', 'usr_devika_execom', 'usr_arun_external'],
-    commentsCount: 3,
+    commentsCount: 2,
     comments: [
       {
         id: 'c-1',
@@ -73,7 +70,7 @@ export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
     authorDepartment: 'Artificial Intelligence & Data Science',
     upvotes: 31,
     upvoters: ['usr_rahul_01', 'usr_aditya_03'],
-    commentsCount: 2,
+    commentsCount: 1,
     comments: [
       {
         id: 'c-3',
@@ -112,7 +109,7 @@ export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
     authorDepartment: 'Mechanical & Mechatronics',
     upvotes: 56,
     upvoters: ['usr_rahul_01', 'usr_anjana_02', 'usr_devika_execom'],
-    commentsCount: 4,
+    commentsCount: 1,
     comments: [
       {
         id: 'c-4',
@@ -173,282 +170,264 @@ export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
   }
 ];
 
-function getStoredIdeas(): IdeaBoxSubmission[] {
-  try {
-    const raw = localStorage.getItem(IDEABOX_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(IDEABOX_STORAGE_KEY, JSON.stringify(INITIAL_IDEAS));
-      return INITIAL_IDEAS;
-    }
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error('Failed to load IdeaBox from localStorage:', err);
-    return INITIAL_IDEAS;
-  }
-}
+function mapIdeaRow(row: any): IdeaBoxSubmission {
+  const votes = Array.isArray(row.idea_votes) ? row.idea_votes : [];
+  const commentsList = Array.isArray(row.ideabox_comments) 
+    ? row.ideabox_comments.map((c: any): IdeaComment => ({
+        id: c.id,
+        authorId: c.author_id,
+        authorName: c.author_name || 'Member',
+        authorAvatar: c.author_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${c.author_id}`,
+        authorRole: c.author_role || 'Student',
+        text: c.text,
+        createdAt: c.created_at
+      }))
+    : (Array.isArray(row.comments) ? row.comments : []);
 
-function saveIdeas(ideas: IdeaBoxSubmission[]): void {
-  try {
-    localStorage.setItem(IDEABOX_STORAGE_KEY, JSON.stringify(ideas));
-    window.dispatchEvent(new CustomEvent(IDEABOX_EVENT_NAME, { detail: { count: ideas.length } }));
-  } catch (err) {
-    console.error('Failed to save IdeaBox to localStorage:', err);
-  }
+  return {
+    id: row.id,
+    title: row.title,
+    domain: row.domain,
+    elevatorPitch: row.elevator_pitch || row.elevatorPitch || '',
+    problemStatement: row.problem_statement || row.problemStatement || '',
+    proposedSolution: row.proposed_solution || row.proposedSolution || '',
+    techStack: row.tech_stack || row.techStack || [],
+    stage: row.stage as IdeaStage,
+    targetAudience: row.target_audience || row.targetAudience || '',
+    estimatedBudget: row.estimated_budget || row.estimatedBudget,
+    authorId: row.author_id || row.authorId,
+    authorName: row.author_name || row.authorName,
+    authorEmail: row.author_email || row.authorEmail,
+    authorAvatar: row.author_avatar || row.authorAvatar,
+    authorRole: row.author_role || row.authorRole,
+    authorDepartment: row.author_department || row.authorDepartment,
+    upvotes: row.upvotes ?? votes.length,
+    upvoters: votes.map((v: { user_id: string }) => v.user_id),
+    commentsCount: row.comments_count ?? commentsList.length,
+    comments: commentsList,
+    status: row.status as IdeaStatus,
+    adminRating: row.admin_rating ?? row.adminRating,
+    adminFeedback: row.admin_feedback || row.adminFeedback,
+    adminReviewedBy: row.admin_reviewed_by || row.adminReviewedBy,
+    adminReviewedAt: row.admin_reviewed_at || row.adminReviewedAt,
+    incubatorTrackAssigned: row.incubator_track_assigned || row.incubatorTrackAssigned,
+    createdAt: row.created_at || row.createdAt,
+    updatedAt: row.updated_at || row.updatedAt
+  };
 }
 
 export const ideaBoxService = {
-  subscribe(callback: () => void): () => void {
-    const handler = () => callback();
-    window.addEventListener(IDEABOX_EVENT_NAME, handler);
-    return () => window.removeEventListener(IDEABOX_EVENT_NAME, handler);
-  },
-
-  async getAllIdeas(): Promise<IdeaBoxSubmission[]> {
+  /**
+   * Fetches ideas directly from Supabase (Single Source of Truth)
+   */
+  async getAllIdeas(filters?: {
+    domain?: string;
+    stage?: string;
+    status?: string;
+    searchQuery?: string;
+  }): Promise<IdeaBoxSubmission[]> {
     const sb = getSupabase();
-    if (sb) {
-      try {
-        const { data, error } = await sb
-          .from('ideabox_submissions')
-          .select('*, idea_votes(user_id)')
-          .order('created_at', { ascending: false });
-
-        if (!error && data && data.length > 0) {
-          return data.map((row: any) => ({
-            id: row.id,
-            title: row.title,
-            domain: row.domain,
-            elevatorPitch: row.elevator_pitch || row.elevatorPitch || '',
-            problemStatement: row.problem_statement || row.problemStatement || '',
-            proposedSolution: row.proposed_solution || row.proposedSolution || '',
-            techStack: row.tech_stack || row.techStack || [],
-            stage: row.stage,
-            targetAudience: row.target_audience || row.targetAudience || '',
-            estimatedBudget: row.estimated_budget || row.estimatedBudget,
-            authorId: row.author_id || row.authorId,
-            authorName: row.author_name || row.authorName,
-            authorEmail: row.author_email || row.authorEmail,
-            authorAvatar: row.author_avatar || row.authorAvatar,
-            authorRole: row.author_role || row.authorRole,
-            authorDepartment: row.author_department || row.authorDepartment,
-            upvotes: row.upvotes ?? (row.idea_votes ? row.idea_votes.length : 0),
-            upvoters: row.idea_votes ? row.idea_votes.map((v: { user_id: string }) => v.user_id) : (row.upvoters || []),
-            commentsCount: row.comments_count ?? row.commentsCount ?? 0,
-            comments: row.comments || [],
-            status: row.status,
-            adminRating: row.admin_rating ?? row.adminRating,
-            adminFeedback: row.admin_feedback || row.adminFeedback,
-            adminReviewedBy: row.admin_reviewed_by || row.adminReviewedBy,
-            adminReviewedAt: row.admin_reviewed_at || row.adminReviewedAt,
-            incubatorTrackAssigned: row.incubator_track_assigned || row.incubatorTrackAssigned,
-            createdAt: row.created_at || row.createdAt,
-            updatedAt: row.updated_at || row.updatedAt
-          }));
-        }
-      } catch (err) {
-        // fallback
-      }
+    if (!sb) {
+      return INITIAL_IDEAS;
     }
-    return getStoredIdeas();
+
+    try {
+      let query = sb
+        .from('ideabox_submissions')
+        .select('*, idea_votes(user_id), ideabox_comments(*)')
+        .order('created_at', { ascending: false });
+
+      if (filters?.domain && filters.domain !== 'All Domains') {
+        query = query.eq('domain', filters.domain);
+      }
+      if (filters?.stage && filters.stage !== 'All') {
+        query = query.eq('stage', filters.stage);
+      }
+      if (filters?.status && filters.status !== 'All') {
+        query = query.eq('status', filters.status);
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data && data.length > 0) {
+        let results = data.map(mapIdeaRow);
+        if (filters?.searchQuery?.trim()) {
+          const q = filters.searchQuery.toLowerCase();
+          results = results.filter(i => 
+            i.title.toLowerCase().includes(q) || 
+            i.proposedSolution.toLowerCase().includes(q) ||
+            i.authorName.toLowerCase().includes(q)
+          );
+        }
+        return results;
+      }
+
+      // If database table is connected but empty, return sample seed items
+      if (!error && (!data || data.length === 0)) {
+        return INITIAL_IDEAS;
+      }
+    } catch (err) {
+      console.warn('Supabase getAllIdeas exception, using initial ideas:', err);
+    }
+
+    return INITIAL_IDEAS;
   },
 
   async getIdeaById(id: string): Promise<IdeaBoxSubmission | null> {
-    const ideas = await this.getAllIdeas();
-    return ideas.find(i => i.id === id) || null;
+    const sb = getSupabase();
+    if (!sb) {
+      return INITIAL_IDEAS.find(i => i.id === id) || null;
+    }
+
+    try {
+      const { data, error } = await sb
+        .from('ideabox_submissions')
+        .select('*, idea_votes(user_id), ideabox_comments(*)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!error && data) {
+        return mapIdeaRow(data);
+      }
+    } catch (err) {
+      console.warn('Supabase getIdeaById exception:', err);
+    }
+
+    return INITIAL_IDEAS.find(i => i.id === id) || null;
   },
 
   async submitIdea(submission: Omit<IdeaBoxSubmission, 'id' | 'upvotes' | 'upvoters' | 'commentsCount' | 'comments' | 'status' | 'createdAt'>): Promise<IdeaBoxSubmission> {
-    const newIdea: IdeaBoxSubmission = {
+    const newIdeaId = `idea_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+
+    const sb = getSupabase();
+    if (sb) {
+      const { error: insertError } = await sb.from('ideabox_submissions').insert([{
+        id: newIdeaId,
+        title: submission.title,
+        domain: submission.domain,
+        elevator_pitch: submission.elevatorPitch,
+        problem_statement: submission.problemStatement,
+        proposed_solution: submission.proposedSolution,
+        tech_stack: submission.techStack,
+        stage: submission.stage,
+        target_audience: submission.targetAudience,
+        estimated_budget: submission.estimatedBudget,
+        author_id: submission.authorId,
+        author_name: submission.authorName,
+        author_email: submission.authorEmail,
+        author_avatar: submission.authorAvatar,
+        author_role: submission.authorRole,
+        author_department: submission.authorDepartment,
+        status: 'Pending',
+        created_at: now
+      }]);
+
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
+
+      // Initial author vote via idea_votes
+      if (submission.authorId && !submission.authorId.startsWith('usr_')) {
+        await sb.from('idea_votes').insert([{
+          idea_id: newIdeaId,
+          user_id: submission.authorId
+        }]);
+      }
+    }
+
+    return {
       ...submission,
-      id: `idea_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: newIdeaId,
       upvotes: 1,
       upvoters: [submission.authorId],
       commentsCount: 0,
       comments: [],
       status: 'Pending',
-      createdAt: new Date().toISOString()
+      createdAt: now
     };
-
-    const sb = getSupabase();
-    if (sb) {
-      try {
-        await sb.from('ideabox_submissions').insert([{
-          id: newIdea.id,
-          title: newIdea.title,
-          domain: newIdea.domain,
-          elevator_pitch: newIdea.elevatorPitch,
-          problem_statement: newIdea.problemStatement,
-          proposed_solution: newIdea.proposedSolution,
-          tech_stack: newIdea.techStack,
-          stage: newIdea.stage,
-          target_audience: newIdea.targetAudience,
-          estimated_budget: newIdea.estimatedBudget,
-          author_id: newIdea.authorId,
-          author_name: newIdea.authorName,
-          author_email: newIdea.authorEmail,
-          author_avatar: newIdea.authorAvatar,
-          author_role: newIdea.authorRole,
-          author_department: newIdea.authorDepartment,
-          status: 'Pending',
-          created_at: newIdea.createdAt
-        }]);
-
-        if (submission.authorId && !submission.authorId.startsWith('usr_')) {
-          await sb.from('idea_votes').insert([{
-            idea_id: newIdea.id,
-            user_id: submission.authorId
-          }]);
-        }
-      } catch (err) {
-        console.warn('Supabase ideabox insert error, using local:', err);
-      }
-    }
-
-    const ideas = getStoredIdeas();
-    const updated = [newIdea, ...ideas];
-    saveIdeas(updated);
-    return newIdea;
   },
 
   /**
-   * Toggles an upvote on a startup pitch.
-   * 
-   * NOTE (v3 Security Baseline): Direct table updates to `upvotes` or `upvoters` are
-   * blocked by the database trigger `trg_ideabox_guard`. We invoke the atomic
-   * SECURITY DEFINER RPC `upvote_idea` which safely handles user identity,
-   * prevents double-voting, and sets the transient transaction flag `iedc.rpc_voting`.
+   * Toggles upvote on an idea via the atomic RPC
    */
   async toggleUpvote(ideaId: string, userId: string): Promise<{ upvotes: number; userHasUpvoted: boolean }> {
     const sb = getSupabase();
-    if (sb) {
-      try {
-        const { data, error } = await sb.rpc('upvote_idea', { p_idea_id: ideaId });
-        if (!error && data) {
-          const ideas = getStoredIdeas();
-          const index = ideas.findIndex(i => i.id === ideaId);
-          if (index !== -1) {
-            ideas[index].upvotes = data.upvotes;
-            if (data.hasVoted) {
-              if (!ideas[index].upvoters.includes(userId)) ideas[index].upvoters.push(userId);
-            } else {
-              ideas[index].upvoters = ideas[index].upvoters.filter(id => id !== userId);
-            }
-            saveIdeas(ideas);
-          }
-          return { upvotes: data.upvotes, userHasUpvoted: data.hasVoted };
-        }
-      } catch (err) {
-        console.warn('Supabase upvote_idea error, using local fallback:', err);
+    if (sb && !userId.startsWith('usr_')) {
+      const { data, error } = await sb.rpc('upvote_idea', { p_idea_id: ideaId });
+      if (!error && data) {
+        return {
+          upvotes: data.upvotes,
+          userHasUpvoted: data.hasVoted
+        };
+      }
+      if (error) {
+        console.warn('Supabase upvote_idea RPC error:', error);
       }
     }
 
-    const ideas = getStoredIdeas();
-    const index = ideas.findIndex(i => i.id === ideaId);
-    if (index === -1) return { upvotes: 0, userHasUpvoted: false };
-
-    const idea = ideas[index];
-    const upvoters = idea.upvoters || [];
-    const hasUpvoted = upvoters.includes(userId);
-
-    let updatedUpvoters: string[];
-    let newCount: number;
-
-    if (hasUpvoted) {
-      updatedUpvoters = upvoters.filter(id => id !== userId);
-      newCount = Math.max(0, idea.upvotes - 1);
-    } else {
-      updatedUpvoters = [...upvoters, userId];
-      newCount = idea.upvotes + 1;
-    }
-
-    ideas[index] = {
-      ...idea,
-      upvotes: newCount,
-      upvoters: updatedUpvoters
-    };
-
-    saveIdeas(ideas);
-    return { upvotes: newCount, userHasUpvoted: !hasUpvoted };
+    // Default simulation for demo persona accounts
+    return { upvotes: 1, userHasUpvoted: true };
   },
 
   async addComment(ideaId: string, comment: Omit<IdeaComment, 'id' | 'createdAt'>): Promise<IdeaComment> {
-    const ideas = getStoredIdeas();
-    const index = ideas.findIndex(i => i.id === ideaId);
-    if (index === -1) throw new Error('Idea not found');
+    const commentId = `comm_${Date.now()}`;
+    const now = new Date().toISOString();
 
-    const newComment: IdeaComment = {
+    const sb = getSupabase();
+    if (sb) {
+      const { error } = await sb.from('ideabox_comments').insert([{
+        id: commentId,
+        idea_id: ideaId,
+        author_id: comment.authorId,
+        author_name: comment.authorName,
+        author_avatar: comment.authorAvatar,
+        author_role: comment.authorRole,
+        text: comment.text,
+        created_at: now
+      }]);
+
+      if (error) {
+        console.warn('Supabase addComment error:', error);
+      }
+    }
+
+    return {
       ...comment,
-      id: `comm_${Date.now()}`,
-      createdAt: new Date().toISOString()
+      id: commentId,
+      createdAt: now
     };
-
-    const currentComments = ideas[index].comments || [];
-    ideas[index] = {
-      ...ideas[index],
-      comments: [...currentComments, newComment],
-      commentsCount: currentComments.length + 1
-    };
-
-    saveIdeas(ideas);
-    return newComment;
   },
 
-  // Admin evaluation & feedback
   async adminReviewIdea(ideaId: string, review: {
     status: IdeaStatus;
     rating: number;
     feedback: string;
     reviewerName: string;
     incubatorTrack?: string;
-  }): Promise<IdeaBoxSubmission> {
-    const ideas = getStoredIdeas();
-    const index = ideas.findIndex(i => i.id === ideaId);
-    if (index === -1) throw new Error('Idea not found');
-
-    const updated: IdeaBoxSubmission = {
-      ...ideas[index],
-      status: review.status,
-      adminRating: review.rating,
-      adminFeedback: review.feedback,
-      adminReviewedBy: review.reviewerName,
-      adminReviewedAt: new Date().toISOString(),
-      incubatorTrackAssigned: review.incubatorTrack || ideas[index].incubatorTrackAssigned,
-      updatedAt: new Date().toISOString()
-    };
-
-    ideas[index] = updated;
-    saveIdeas(ideas);
-
+  }): Promise<void> {
     const sb = getSupabase();
     if (sb) {
-      try {
-        await sb.from('ideabox_submissions').update({
-          status: review.status,
-          admin_rating: review.rating,
-          admin_feedback: review.feedback,
-          admin_reviewed_by: review.reviewerName,
-          admin_reviewed_at: updated.adminReviewedAt,
-          incubator_track: updated.incubatorTrackAssigned
-        }).eq('id', ideaId);
-      } catch (e) {
-        console.warn('Supabase admin review sync:', e);
+      const { error } = await sb.from('ideabox_submissions').update({
+        status: review.status,
+        admin_rating: review.rating,
+        admin_feedback: review.feedback,
+        admin_reviewed_by: review.reviewerName,
+        admin_reviewed_at: new Date().toISOString(),
+        incubator_track_assigned: review.incubatorTrack
+      }).eq('id', ideaId);
+
+      if (error) {
+        throw new Error(error.message);
       }
     }
-
-    return updated;
   },
 
   async deleteIdea(ideaId: string): Promise<boolean> {
-    const ideas = getStoredIdeas();
-    const filtered = ideas.filter(i => i.id !== ideaId);
-    saveIdeas(filtered);
-
     const sb = getSupabase();
     if (sb) {
-      try {
-        await sb.from('ideabox_submissions').delete().eq('id', ideaId);
-      } catch (e) {
-        // ignore
-      }
+      const { error } = await sb.from('ideabox_submissions').delete().eq('id', ideaId);
+      if (error) throw new Error(error.message);
     }
     return true;
   }

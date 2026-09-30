@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
 import { HomePage } from './pages/HomePage';
 import { NewsletterPage } from './pages/NewsletterPage';
 import { AdminPage } from './pages/AdminPage';
@@ -25,32 +27,34 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/ideabox" element={<IdeaBoxPage />} />
-        <Route path="/hackathons" element={<HackathonPortalPage />} />
-        <Route path="/hackathon" element={<Navigate to="/hackathons" replace />} />
-        <Route path="/teams" element={<Navigate to="/hackathons" replace />} />
-        <Route path="/forum" element={<ForumPage />} />
-        <Route path="/newsletter" element={<NewsletterPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/kyc" element={<Navigate to="/profile?tab=kyc" replace />} />
-        <Route path="/admin" element={<AdminPage />} />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/ideabox" element={<IdeaBoxPage />} />
+          <Route path="/hackathons" element={<HackathonPortalPage />} />
+          <Route path="/hackathon" element={<Navigate to="/hackathons" replace />} />
+          <Route path="/teams" element={<Navigate to="/hackathons" replace />} />
+          <Route path="/forum" element={<ForumPage />} />
+          <Route path="/newsletter" element={<NewsletterPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/kyc" element={<Navigate to="/profile?tab=kyc" replace />} />
+          <Route path="/admin" element={<AdminPage />} />
 
-        {/* Legacy redirect support */}
-        <Route path="/newsletter.html" element={<Navigate to="/newsletter" replace />} />
-        <Route path="/admin.html" element={<Navigate to="/admin" replace />} />
-        <Route path="/profile.html" element={<Navigate to="/profile" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Legacy redirect support */}
+          <Route path="/newsletter.html" element={<Navigate to="/newsletter" replace />} />
+          <Route path="/admin.html" element={<Navigate to="/admin" replace />} />
+          <Route path="/profile.html" element={<Navigate to="/profile" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
 
-      {/* Global Auth Modal */}
-      <AuthModal
-        isOpen={authModalOpen}
-        initialTab={authInitialTab}
-        onClose={() => setAuthModalOpen(false)}
-      />
-    </BrowserRouter>
+        {/* Global Auth Modal */}
+        <AuthModal
+          isOpen={authModalOpen}
+          initialTab={authInitialTab}
+          onClose={() => setAuthModalOpen(false)}
+        />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };

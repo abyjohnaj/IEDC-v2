@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navigation/Navbar';
 import { Footer } from '../components/Navigation/Footer';
-import { ideaBoxService } from '../services/ideaBoxService';
+import { useIdeas, useVoteIdea, useSubmitIdea, useAddIdeaComment } from '../hooks/useIdeas';
 import { authService, openAuthModal } from '../services/authService';
 import { IdeaBoxSubmission, IdeaStage, User } from '../types';
 import {
@@ -35,7 +35,6 @@ const DOMAINS = [
 ];
 
 export const IdeaBoxPage: React.FC = () => {
-  const [ideas, setIdeas] = useState<IdeaBoxSubmission[]>([]);
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('All Domains');
@@ -44,6 +43,24 @@ export const IdeaBoxPage: React.FC = () => {
   const [expandedCommentsId, setExpandedCommentsId] = useState<string | null>(null);
   const [commentInputMap, setCommentInputMap] = useState<Record<string, string>>({});
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+
+  // TanStack React Query Hooks - Supabase as Single Source of Truth
+  const {
+    data: ideas = [],
+    isLoading,
+    isError,
+    error,
+    refetch
+  } = useIdeas({
+    domain: selectedDomain,
+    stage: selectedStage,
+    status: selectedStatus,
+    searchQuery
+  });
+
+  const voteMutation = useVoteIdea();
+  const submitMutation = useSubmitIdea();
+  const commentMutation = useAddIdeaComment();
 
   // New Idea Form State
   const [title, setTitle] = useState('');
@@ -58,43 +75,20 @@ export const IdeaBoxPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  const loadIdeas = async () => {
-    const list = await ideaBoxService.getAllIdeas();
-    setIdeas(list);
-  };
-
   useEffect(() => {
-    loadIdeas();
     const unsubAuth = authService.onAuthStateChange(u => setUser(u));
-    const unsubIdeas = ideaBoxService.subscribe(() => loadIdeas());
-    return () => {
-      unsubAuth();
-      unsubIdeas();
-    };
+    return () => unsubAuth();
   }, []);
 
-  const handleUpvote = async (ideaId: string) => {
+  const handleUpvote = (ideaId: string) => {
     if (!user) {
       openAuthModal('login');
       return;
     }
-    const res = await ideaBoxService.toggleUpvote(ideaId, user.id);
-    setIdeas(prev =>
-      prev.map(i =>
-        i.id === ideaId
-          ? {
-              ...i,
-              upvotes: res.upvotes,
-              upvoters: res.userHasUpvoted
-                ? [...i.upvoters, user.id]
-                : i.upvoters.filter(id => id !== user.id)
-            }
-          : i
-      )
-    );
+    voteMutation.mutate({ ideaId, userId: user.id });
   };
 
-  const handleAddComment = async (ideaId: string) => {
+  const handleAddComment = (ideaId: string) => {
     if (!user) {
       openAuthModal('login');
       return;
@@ -102,16 +96,23 @@ export const IdeaBoxPage: React.FC = () => {
     const text = commentInputMap[ideaId]?.trim();
     if (!text) return;
 
-    await ideaBoxService.addComment(ideaId, {
-      authorId: user.id,
-      authorName: user.fullName,
-      authorAvatar: user.avatar,
-      authorRole: user.role,
-      text
-    });
-
-    setCommentInputMap(prev => ({ ...prev, [ideaId]: '' }));
-    loadIdeas();
+    commentMutation.mutate(
+      {
+        ideaId,
+        comment: {
+          authorId: user.id,
+          authorName: user.fullName,
+          authorAvatar: user.avatar,
+          authorRole: user.role,
+          text
+        }
+      },
+      {
+        onSuccess: () => {
+          setCommentInputMap(prev => ({ ...prev, [ideaId]: '' }));
+        }
+      }
+    );
   };
 
   const handleSubmitNewIdea = async (e: React.FormEvent) => {
@@ -133,7 +134,7 @@ export const IdeaBoxPage: React.FC = () => {
         .map(s => s.trim())
         .filter(Boolean);
 
-      await ideaBoxService.submitIdea({
+      await submitMutation.mutateAsync({
         title: title.trim(),
         domain,
         elevatorPitch: elevatorPitch.trim() || title.trim(),
@@ -161,7 +162,6 @@ export const IdeaBoxPage: React.FC = () => {
       setEstimatedBudget('');
       setSuccessToast('Your startup idea has been submitted to the BMCE IdeaBox & Nodal Evaluation Queue!');
       setTimeout(() => setSuccessToast(null), 5000);
-      loadIdeas();
     } catch (err: any) {
       alert(err.message || 'Submission failed');
     } finally {
@@ -311,11 +311,65 @@ export const IdeaBoxPage: React.FC = () => {
           ))}
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="ideabox-cards-grid" style={{ opacity: 0.85, margin: '1.5rem 0' }}>
+            {[1, 2, 3].map(n => (
+              <div key={n} className="ideabox-card" style={{ minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', background: 'rgba(255, 255, 255, 0.02)' }}>
+                <Clock className="spin-slow" size={32} style={{ color: 'var(--accent-cyan)' }} />
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Loading live ideas from Supabase...</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Error State */}
+        {isError && (
+          <div style={{
+            padding: '2.5rem',
+            textAlign: 'center',
+            background: 'rgba(225, 29, 72, 0.08)',
+            border: '1px solid rgba(225, 29, 72, 0.25)',
+            borderRadius: 'var(--radius-md)',
+            margin: '2rem 0'
+          }}>
+            <h4 style={{ color: 'var(--accent-rose)', margin: '0 0 0.5rem 0' }}>Unable to load IdeaBox feed</h4>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.2rem' }}>
+              {error?.message || 'A network error occurred while querying Supabase.'}
+            </p>
+            <button className="btn btn-secondary" onClick={() => refetch()}>
+              Try Reconnecting
+            </button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !isError && filteredIdeas.length === 0 && (
+          <div style={{
+            padding: '4rem 2rem',
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px dashed var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            margin: '2rem 0'
+          }}>
+            <Lightbulb size={48} style={{ color: 'var(--accent-cyan)', margin: '0 auto 1rem', opacity: 0.6 }} />
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>No Ideas Found</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
+              No startup ideas matched your active filters. Try adjusting search criteria or be the first to submit in this track!
+            </p>
+            <button className="btn btn-primary" onClick={() => setIsSubmitModalOpen(true)}>
+              <Plus size={16} /> Submit Your Idea
+            </button>
+          </div>
+        )}
+
         {/* Ideas Grid */}
-        <div className="ideabox-cards-grid">
-          {filteredIdeas.map(idea => {
-            const hasUpvoted = user ? idea.upvoters?.includes(user.id) : false;
-            const isCommentsOpen = expandedCommentsId === idea.id;
+        {!isLoading && !isError && filteredIdeas.length > 0 && (
+          <div className="ideabox-cards-grid">
+            {filteredIdeas.map(idea => {
+              const hasUpvoted = user ? idea.upvoters?.includes(user.id) : false;
+              const isCommentsOpen = expandedCommentsId === idea.id;
 
             return (
               <div key={idea.id} className="ideabox-card">
@@ -483,13 +537,6 @@ export const IdeaBoxPage: React.FC = () => {
             );
           })}
         </div>
-
-        {filteredIdeas.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--text-muted)' }}>
-            <Lightbulb size={40} style={{ opacity: 0.4, marginBottom: '0.75rem' }} />
-            <h3 style={{ color: 'var(--text-primary)' }}>No ideas match your criteria</h3>
-            <p>Try clearing your filters or be the first innovator to pitch in this domain!</p>
-          </div>
         )}
       </section>
 
