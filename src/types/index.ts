@@ -482,3 +482,84 @@ export interface StatusHistoryEntry {
   created_at: string;
 }
 
+export interface TeamInvite {
+  id: string;
+  code: string;
+  teamId: string;
+  createdBy?: string;
+  createdAt: string;
+  expiresAt: string;
+  maxUses: number;
+  usedCount: number;
+}
+
+export interface TeamSubmissionSnapshot {
+  id: string;
+  teamId: string;
+  submissionId?: string;
+  projectTitle: string;
+  repoUrl: string;
+  commitSha?: string;
+  demoUrl?: string;
+  snapshotTime: string;
+  submittedBy?: string;
+  isLocked: boolean;
+}
+
+export interface HackathonCriterion {
+  id: string;
+  name: string;
+  weight: number;
+  description?: string;
+}
+
+export interface HackathonJudge {
+  id: string;
+  userId: string;
+  fullName?: string;
+  avatar?: string;
+  organization?: string;
+  isActive: boolean;
+  conflictOfInterest: boolean;
+}
+
+export interface JudgeAssignment {
+  id: string;
+  judgeId: string;
+  track: string;
+  hackathonId?: string;
+  assignedAt: string;
+}
+
+export interface JudgeScore {
+  id?: string;
+  teamId: string;
+  judgeId: string;
+  criterionId: string;
+  score: number;
+  feedback?: string;
+  createdAt?: string;
+}
+
+export interface HackathonLeaderboardRow {
+  teamId: string;
+  teamName: string;
+  track: string;
+  projectTitle?: string;
+  totalScore: number;
+  judgesCount: number;
+  rank: number;
+}
+
+export interface TeamMatchSuggestion {
+  userId: string;
+  fullName: string;
+  avatarUrl?: string;
+  department?: string;
+  skills: string[];
+  matchingSkills: string[];
+  overlapCount: number;
+  suggestedRole: string;
+}
+
+

@@ -194,6 +194,69 @@ export const reportService = {
     return [headers.join(','), ...rows].join('\n');
   },
 
+  // 5. Generate RFC-4180 CSV for Hackathon Official Rankings
+  generateHackathonRankingsCSV(rankings: Array<{ rank: number; teamName: string; track: string; projectTitle?: string; totalScore: number; judgesCount: number }>, hackathonTitle?: string): string {
+    const headers = [
+      'Rank',
+      'Team Name',
+      'Track',
+      'Project Title',
+      'Weighted Aggregate Score',
+      'Judges Scored',
+      'Hackathon'
+    ];
+
+    const rows = rankings.map(r => [
+      r.rank,
+      `"${r.teamName.replace(/"/g, '""')}"`,
+      `"${r.track.replace(/"/g, '""')}"`,
+      `"${(r.projectTitle || 'N/A').replace(/"/g, '""')}"`,
+      r.totalScore.toFixed(2),
+      r.judgesCount,
+      `"${(hackathonTitle || 'BMCE Hackathon').replace(/"/g, '""')}"`
+    ].join(','));
+
+    return [headers.join(','), ...rows].join('\n');
+  },
+
+  // 6. Generate RFC-4180 CSV for Judge Evaluation Score Sheets
+  generateJudgeScoreSheetCSV(scoreSheets: Array<{
+    teamName: string;
+    track: string;
+    judgeName: string;
+    criterionName: string;
+    weight: number;
+    score: number;
+    feedback?: string;
+  }>): string {
+    const headers = [
+      'Team Name',
+      'Track',
+      'Judge Name',
+      'Criterion',
+      'Criterion Weight',
+      'Score (1-10)',
+      'Weighted Score',
+      'Judge Qualitative Remarks'
+    ];
+
+    const rows = scoreSheets.map(s => {
+      const weighted = (s.score * s.weight).toFixed(2);
+      return [
+        `"${s.teamName.replace(/"/g, '""')}"`,
+        `"${s.track.replace(/"/g, '""')}"`,
+        `"${s.judgeName.replace(/"/g, '""')}"`,
+        `"${s.criterionName.replace(/"/g, '""')}"`,
+        s.weight,
+        s.score,
+        weighted,
+        `"${(s.feedback || '').replace(/"/g, '""')}"`
+      ].join(',');
+    });
+
+    return [headers.join(','), ...rows].join('\n');
+  },
+
   // Trigger browser download for generated CSV
   downloadCSV(filename: string, csvContent: string): void {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -208,3 +271,4 @@ export const reportService = {
     URL.revokeObjectURL(url);
   }
 };
+

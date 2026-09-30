@@ -6,7 +6,14 @@ import {
   ProjectSubmission,
   TeamChatMessage,
   HackathonRole,
-  User
+  User,
+  TeamInvite,
+  TeamSubmissionSnapshot,
+  HackathonCriterion,
+  HackathonJudge,
+  JudgeScore,
+  HackathonLeaderboardRow,
+  TeamMatchSuggestion
 } from '../types';
 import { getSupabase } from './supabaseClient';
 
@@ -850,5 +857,236 @@ export const hackathonService = {
     });
 
     return teams[index];
+  },
+
+  /**
+   * Generate an invite code with expiry and max uses (Leader/Admin only)
+   */
+  async createTeamInvite(teamId: string, hoursValid: number = 48, maxUses: number = 4): Promise<TeamInvite> {
+    const sb = getSupabase();
+    if (!sb) {
+      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const expiresAt = new Date(Date.now() + hoursValid * 3600 * 1000).toISOString();
+      return {
+        id: `inv_${Date.now()}`,
+        code,
+        teamId,
+        createdAt: new Date().toISOString(),
+        expiresAt,
+        maxUses,
+        usedCount: 0,
+      };
+    }
+
+    const { data, error } = await sb.rpc('create_team_invite', {
+      p_team_id: teamId,
+      p_hours_valid: hoursValid,
+      p_max_uses: maxUses,
+    });
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: data.code,
+      code: data.code,
+      teamId: data.team_id,
+      createdAt: new Date().toISOString(),
+      expiresAt: data.expires_at,
+      maxUses: data.max_uses,
+      usedCount: 0,
+    };
+  },
+
+  /**
+   * Join a team using invite code (enforcing KYC verification, expiry & max size limit)
+   */
+  async joinTeamWithInvite(code: string, roleInTeam: string = 'Developer'): Promise<{ success: boolean; team_id: string; team_name: string }> {
+    const sb = getSupabase();
+    if (!sb) {
+      return { success: true, team_id: 'mock_team', team_name: 'Mock Hackathon Team' };
+    }
+
+    const { data, error } = await sb.rpc('join_team_with_invite', {
+      p_code: code.trim().toUpperCase(),
+      p_role_in_team: roleInTeam,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  /**
+   * Submit hackathon project with strict deadline verification and immutable snapshot
+   */
+  async submitProjectWithDeadlineCheck(
+    teamId: string,
+    submission: ProjectSubmission & { commitSha?: string }
+  ): Promise<{ success: boolean; submission_id: string }> {
+    const sb = getSupabase();
+    if (!sb) {
+      return { success: true, submission_id: `sub_${Date.now()}` };
+    }
+
+    const { data, error } = await sb.rpc('submit_hackathon_project', {
+      p_team_id: teamId,
+      p_project_title: submission.projectTitle,
+      p_tagline: submission.tagline || '',
+      p_track: submission.track,
+      p_overview: submission.overview,
+      p_tech_stack: submission.techStack || [],
+      p_github_url: submission.githubUrl,
+      p_commit_sha: submission.commitSha || null,
+      p_demo_video_url: submission.demoVideoUrl || null,
+      p_live_demo_url: submission.liveDemoUrl || null,
+      p_pitch_deck_url: submission.pitchDeckUrl || null,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  /**
+   * Fetch official leaderboard (visible only to admins until event is Completed and published)
+   */
+  async getLeaderboard(hackathonId: string): Promise<HackathonLeaderboardRow[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb.rpc('get_hackathon_leaderboard', {
+      p_hackathon_id: hackathonId,
+    });
+
+    if (error) {
+      console.warn('Leaderboard error:', error.message);
+      throw new Error(error.message);
+    }
+
+    return (data || []).map((row: any) => ({
+      teamId: row.team_id,
+      teamName: row.team_name,
+      track: row.track,
+      projectTitle: row.project_title,
+      totalScore: Number(row.total_score || 0),
+      judgesCount: Number(row.judges_count || 0),
+      rank: Number(row.rank || 0),
+    }));
+  },
+
+  /**
+   * Fetch hackathon evaluation criteria
+   */
+  async getJudgingCriteria(): Promise<HackathonCriterion[]> {
+    const sb = getSupabase();
+    if (!sb) {
+      return [
+        { id: 'c1', name: 'Innovation & Originality', weight: 1.5, description: 'Novelty of approach and creativity' },
+        { id: 'c2', name: 'Technical Complexity', weight: 1.5, description: 'Depth of architecture and code quality' },
+        { id: 'c3', name: 'UI/UX & Execution', weight: 1.0, description: 'Working prototype polish and design' },
+        { id: 'c4', name: 'Pitch & Practical Impact', weight: 1.0, description: 'Societal value and presentation' },
+      ];
+    }
+
+    const { data, error } = await sb
+      .from('hackathon_criteria')
+      .select('*')
+      .order('weight', { ascending: false });
+
+    if (error) {
+      console.warn('Criteria fetch error:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      weight: Number(row.weight),
+      description: row.description,
+    }));
+  },
+
+  /**
+   * Fetch judges list
+   */
+  async getJudges(): Promise<HackathonJudge[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb
+      .from('judges')
+      .select('*, profile:profiles!user_id(full_name, avatar_url)')
+      .eq('is_active', true);
+
+    if (error) {
+      console.warn('Judges fetch error:', error);
+      return [];
+    }
+
+    return (data || []).map((j: any) => ({
+      id: j.id,
+      userId: j.user_id,
+      fullName: j.profile?.full_name || 'Jury Member',
+      avatar: j.profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      organization: j.organization,
+      isActive: j.is_active,
+      conflictOfInterest: j.conflict_of_interest || false,
+    }));
+  },
+
+  /**
+   * Submit judge score (conflict of interest blocked in database)
+   */
+  async submitJudgeScore(
+    teamId: string,
+    judgeId: string,
+    criterionId: string,
+    score: number,
+    feedback?: string
+  ): Promise<void> {
+    const sb = getSupabase();
+    if (!sb) return;
+
+    const { error } = await sb.from('judge_scores').upsert(
+      {
+        team_id: teamId,
+        judge_id: judgeId,
+        criterion_id: criterionId,
+        score,
+        feedback: feedback || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'team_id,judge_id,criterion_id' }
+    );
+
+    if (error) throw new Error(error.message);
+  },
+
+  /**
+   * Suggest team matches by candidate skill overlap with needed roles
+   */
+  async getSkillMatchSuggestions(teamId: string, limit: number = 10): Promise<TeamMatchSuggestion[]> {
+    const sb = getSupabase();
+    if (!sb) return [];
+
+    const { data, error } = await sb.rpc('suggest_team_matches', {
+      p_team_id: teamId,
+      p_limit: limit,
+    });
+
+    if (error) {
+      console.warn('Skill match suggestion error:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      userId: row.user_id,
+      fullName: row.full_name,
+      avatarUrl: row.avatar_url,
+      department: row.department,
+      skills: row.skills || [],
+      matchingSkills: row.matching_skills || [],
+      overlapCount: Number(row.overlap_count || 0),
+      suggestedRole: row.suggested_role || 'Developer',
+    }));
   }
 };
+
