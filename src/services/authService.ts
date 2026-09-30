@@ -431,14 +431,19 @@ function mapSupabaseUser(profile: any, kycRecord?: any): User {
     kyc: {
       status: kycRecord?.status || 'unverified',
       docType: kycRecord?.doc_type || 'student_id',
-      docNumber: kycRecord?.doc_number || '',
+      docNumberLast4: kycRecord?.doc_number_last4 || (kycRecord?.doc_number ? kycRecord.doc_number.slice(-4) : undefined),
+      docNumber: kycRecord?.doc_number_last4 
+        ? `•••• •••• ${kycRecord.doc_number_last4}` 
+        : (kycRecord?.doc_number ? `•••• •••• ${kycRecord.doc_number.slice(-4)}` : '•••• •••• 0000'),
       docFileName: kycRecord?.doc_file_name,
-      docFileUrl: kycRecord?.doc_file_url,
+      docFilePath: kycRecord?.doc_file_path,
+      docFileUrl: undefined, // Always accessed via short-lived signed URL
       fullName: kycRecord?.full_name || profile.full_name || '',
       dob: kycRecord?.dob,
       institution: kycRecord?.institution || 'Baselios Mathews II College of Engineering',
       submittedAt: kycRecord?.submitted_at,
       verifiedAt: kycRecord?.verified_at,
+      retentionDeleteAt: kycRecord?.retention_delete_at,
       rejectionReason: kycRecord?.rejection_reason,
       adminRemarks: kycRecord?.admin_remarks
     },
@@ -726,37 +731,61 @@ export const authService = {
     return updated;
   },
 
-  // Submit KYC verification document
+  // Submit KYC verification document (Invokes Edge Function kyc-submit)
   async submitKYC(userId: string, kycData: {
     docType: KYCDocumentType;
     docNumber: string;
-    docFileName?: string;
-    docFileUrl?: string;
     fullName: string;
-    dob?: string;
     institution?: string;
+    file?: File;
+    dob?: string;
   }): Promise<User> {
     const sb = getSupabase();
+    let docNumberLast4 = kycData.docNumber.trim().slice(-4);
+    let docFilePath: string | undefined = undefined;
+
     if (sb && !userId.startsWith('usr_')) {
       try {
-        await sb.from('kyc_verifications').upsert({
-          user_id: userId,
-          status: 'pending',
-          doc_type: kycData.docType,
-          doc_number: kycData.docNumber.trim(),
-          doc_file_name: kycData.docFileName,
-          doc_file_url: kycData.docFileUrl,
-          full_name: kycData.fullName.trim(),
-          dob: kycData.dob,
-          institution: kycData.institution || 'Baselios Mathews II College of Engineering',
-          submitted_at: new Date().toISOString()
-        });
+        if (kycData.file) {
+          const formData = new FormData();
+          formData.append('fullName', kycData.fullName.trim());
+          formData.append('docType', kycData.docType);
+          formData.append('docNumber', kycData.docNumber.trim());
+          formData.append('institution', kycData.institution || 'Baselios Mathews II College of Engineering');
+          formData.append('file', kycData.file);
+
+          const { data: resData, error: fnError } = await sb.functions.invoke('kyc-submit', {
+            body: formData
+          });
+
+          if (!fnError && resData) {
+            docNumberLast4 = resData.docNumberLast4 || docNumberLast4;
+          } else {
+            console.warn('kyc-submit function notice, attempting direct storage upload fallback:', fnError);
+            // Fallback direct storage upload to user's folder
+            const cleanName = kycData.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const path = `${userId}/${Date.now()}_${cleanName}`;
+            const { error: upErr } = await sb.storage.from('kyc-docs').upload(path, kycData.file, { upsert: true });
+            if (!upErr) docFilePath = path;
+
+            await sb.from('kyc_verifications').upsert({
+              user_id: userId,
+              status: 'pending',
+              doc_type: kycData.docType,
+              doc_number_last4: docNumberLast4,
+              doc_file_path: docFilePath,
+              full_name: kycData.fullName.trim(),
+              institution: kycData.institution || 'Baselios Mathews II College of Engineering',
+              submitted_at: new Date().toISOString()
+            });
+          }
+        }
       } catch (err) {
         console.warn('Supabase submit KYC error:', err);
       }
     }
 
-    // Local DB sync
+    // Local DB sync with masked number
     const users = getUsersDatabase();
     const index = users.findIndex(u => u.id === userId);
     const existing = index !== -1 ? users[index] : (this.getCurrentUser() || INITIAL_USERS[0]);
@@ -765,9 +794,11 @@ export const authService = {
       ...existing.kyc,
       status: 'pending',
       docType: kycData.docType,
-      docNumber: kycData.docNumber.trim(),
-      docFileName: kycData.docFileName || 'student_id_document.jpg',
-      docFileUrl: kycData.docFileUrl || 'https://images.unsplash.com/photo-1589330694653-dad6bc0140fa?w=400&auto=format&fit=crop&q=80',
+      docNumberLast4,
+      docNumber: `•••• •••• ${docNumberLast4}`,
+      docFileName: kycData.file?.name || 'student_id_document.pdf',
+      docFilePath: docFilePath || `${userId}/student_id_${Date.now()}.pdf`,
+      docFileUrl: undefined,
       fullName: kycData.fullName.trim() || existing.fullName,
       dob: kycData.dob,
       institution: kycData.institution || 'Baselios Mathews II College of Engineering',
@@ -788,6 +819,82 @@ export const authService = {
 
     this.setCurrentUser(updatedUser);
     return updatedUser;
+  },
+
+  // Admin KYC Decision via Edge Function kyc-decide
+  async decideKYC(
+    userId: string,
+    decision: 'verified' | 'rejected' | 'pending',
+    rejectionReason?: string,
+    remarks?: string
+  ): Promise<boolean> {
+    const sb = getSupabase();
+    if (sb && !userId.startsWith('usr_')) {
+      try {
+        const { data, error } = await sb.functions.invoke('kyc-decide', {
+          body: {
+            userId,
+            decision,
+            rejection_reason: rejectionReason,
+            remarks
+          }
+        });
+
+        if (error || !data?.success) {
+          // Direct RPC fallback if edge function not running
+          await sb.rpc('exec_kyc_decision', {
+            p_admin_id: (await sb.auth.getUser()).data.user?.id,
+            p_user_id: userId,
+            p_decision: decision,
+            p_rejection_reason: rejectionReason || null,
+            p_remarks: remarks || null
+          });
+        }
+      } catch (err) {
+        console.warn('Error invoking kyc-decide:', err);
+      }
+    }
+
+    // Local DB sync
+    const users = getUsersDatabase();
+    const index = users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+      const u = users[index];
+      u.kyc.status = decision;
+      u.kyc.verifiedAt = decision === 'verified' ? new Date().toISOString() : undefined;
+      u.kyc.rejectionReason = decision === 'rejected' ? rejectionReason : undefined;
+      u.kyc.adminRemarks = remarks;
+      u.kyc.retentionDeleteAt = decision === 'verified'
+        ? new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString()
+        : undefined;
+
+      if (decision === 'verified' && u.role === 'Student') {
+        u.role = 'Innovator';
+      }
+      saveUsersDatabase(users);
+      dispatchAuthChange(u);
+    }
+    return true;
+  },
+
+  // Retrieve 60-second short-lived signed URL for admin document viewing
+  async getKYCDocSignedUrl(docFilePath: string): Promise<string | null> {
+    if (!docFilePath) return null;
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.storage
+          .from('kyc-docs')
+          .createSignedUrl(docFilePath, 60);
+
+        if (!error && data?.signedUrl) {
+          return data.signedUrl;
+        }
+      } catch (err) {
+        console.warn('Error generating KYC signed URL:', err);
+      }
+    }
+    return null;
   },
 
   // Admin or Demo test simulation: Approve / Reject KYC (Dev Only)

@@ -89,39 +89,13 @@ export const KYCVerificationSection: React.FC<KYCVerificationSectionProps> = ({
 
     setSubmitting(true);
     try {
-      let finalDocUrl = previewUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=450&auto=format&fit=crop&q=80';
-
-      // Attempt Supabase storage upload if real file was selected
-      if (selectedFile) {
-        const sb = getSupabase();
-        if (sb && !user.id.startsWith('usr_')) {
-          try {
-            const ext = selectedFile.name.split('.').pop() || 'jpg';
-            const storagePath = `${user.id}/${Date.now()}.${ext}`;
-            const { data: uploadData, error: uploadErr } = await sb.storage
-              .from('kyc-documents')
-              .upload(storagePath, selectedFile, { upsert: true });
-
-            if (!uploadErr && uploadData) {
-              const { data: pubData } = sb.storage.from('kyc-documents').getPublicUrl(storagePath);
-              if (pubData?.publicUrl) {
-                finalDocUrl = pubData.publicUrl;
-              }
-            }
-          } catch (storageException) {
-            console.warn('Storage bucket upload notice:', storageException);
-          }
-        }
-      }
-
       const updated = await authService.submitKYC(user.id, {
         docType,
         docNumber,
-        docFileName: fileName || 'College_Student_ID.jpg',
-        docFileUrl: finalDocUrl,
         fullName,
         dob,
-        institution
+        institution,
+        file: selectedFile || undefined
       });
       onUserUpdated(updated);
       showToast('success', 'KYC documentation submitted successfully! Review status is now Pending.');
@@ -263,12 +237,10 @@ export const KYCVerificationSection: React.FC<KYCVerificationSectionProps> = ({
               <strong>Submitted Document:</strong> {kyc.docType.replace('_', ' ').toUpperCase()} • <strong>Reference:</strong> {kyc.docNumber}
             </div>
 
-            {kyc.docFileUrl && (
-              <div style={{ marginTop: '1rem' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Attached Proof Preview:</span>
-                <div className="kyc-preview-container">
-                  <img src={kyc.docFileUrl} alt="Submitted ID Proof" className="kyc-preview-img" />
-                </div>
+            {kyc.docFileName && (
+              <div style={{ marginTop: '0.8rem', fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <FileText size={15} style={{ color: 'var(--accent-cyan)' }} />
+                <span>Secure Document Vaulted: <strong>{kyc.docFileName}</strong> (Stored in encrypted storage)</span>
               </div>
             )}
           </div>

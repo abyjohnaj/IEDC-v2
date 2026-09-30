@@ -105,19 +105,30 @@ export interface NewsletterEdition {
 
 export type KYCStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 export type KYCDocumentType = 'student_id' | 'aadhaar' | 'college_admission' | 'pan';
+export type KYCRejectionReason = 
+  | 'illegible_document'
+  | 'expired_id'
+  | 'mismatched_name'
+  | 'invalid_institution'
+  | 'roll_number_mismatch'
+  | 'tampered_document'
+  | 'other';
 
 export interface KYCDetails {
   status: KYCStatus;
   docType: KYCDocumentType;
-  docNumber: string;
+  docNumber?: string; // Masked display value e.g. "**** **** 1234"
+  docNumberLast4?: string; // Exactly last 4 characters
   docFileName?: string;
-  docFileUrl?: string;
+  docFileUrl?: string; // Short-lived signed URL for viewer (never stored data URL)
+  docFilePath?: string; // Secure path in kyc-docs bucket (<user_id>/...)
   fullName: string;
   dob?: string;
   institution: string;
   submittedAt?: string;
   verifiedAt?: string;
-  rejectionReason?: string;
+  retentionDeleteAt?: string;
+  rejectionReason?: KYCRejectionReason | string;
   adminRemarks?: string;
 }
 

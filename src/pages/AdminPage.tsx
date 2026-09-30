@@ -13,6 +13,7 @@ import {
   updateAdminKYCStatus,
   AdminKYCItem
 } from '../services/supabaseClient';
+import { authService } from '../services/authService';
 import { RegistrationSubmission, EventItem, ForumDiscussion } from '../types';
 import { AdminExecomRoleManager } from '../components/Admin/AdminExecomRoleManager';
 import {
@@ -89,6 +90,7 @@ export const AdminPage: React.FC = () => {
   const [selectedKYCForInspect, setSelectedKYCForInspect] = useState<AdminKYCItem | null>(null);
   const [rejectionModalItem, setRejectionModalItem] = useState<AdminKYCItem | null>(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [signedDocUrl, setSignedDocUrl] = useState<string | null>(null);
 
   // Filter state for Events Catalog
   const [eventSearch, setEventSearch] = useState('');
@@ -149,6 +151,24 @@ export const AdminPage: React.FC = () => {
       window.removeEventListener('storage', handleKycUpdated);
     };
   }, []);
+
+  // Fetch 60-second short-lived signed URL whenever an admin inspects a KYC document
+  useEffect(() => {
+    let active = true;
+    if (selectedKYCForInspect) {
+      const path = selectedKYCForInspect.docFilePath;
+      if (path && !path.startsWith('http') && !path.startsWith('data:')) {
+        authService.getKYCDocSignedUrl(path).then((url: string | null) => {
+          if (active) setSignedDocUrl(url);
+        });
+      } else {
+        setSignedDocUrl(selectedKYCForInspect.docFileUrl || null);
+      }
+    } else {
+      setSignedDocUrl(null);
+    }
+    return () => { active = false; };
+  }, [selectedKYCForInspect]);
 
   const showNotification = (msg: string) => {
     setNotificationMsg(msg);
@@ -346,9 +366,9 @@ export const AdminPage: React.FC = () => {
     link.click();
   };
 
-  // KYC Handlers & Approvals
+  // KYC Handlers & Approvals (Using server-side kyc-decide)
   const handleApproveKYC = async (userId: string, name: string) => {
-    await updateAdminKYCStatus(userId, 'verified', 'Approved by BMCE IEDC Nodal Center. Full Innovation Pass issued.');
+    await authService.decideKYC(userId, 'verified', undefined, 'Approved by BMCE IEDC Nodal Center. Full Innovation Pass issued.');
     setKycSubmissions(prev => prev.map(k => k.userId === userId ? { ...k, status: 'verified', verifiedAt: new Date().toISOString() } : k));
     showNotification(`✅ Student KYC for "${name}" approved & Innovation Pass issued!`);
   };
@@ -360,14 +380,14 @@ export const AdminPage: React.FC = () => {
 
   const handleConfirmRejectKYC = async () => {
     if (!rejectionModalItem) return;
-    await updateAdminKYCStatus(rejectionModalItem.userId, 'rejected', rejectionReasonInput);
+    await authService.decideKYC(rejectionModalItem.userId, 'rejected', rejectionReasonInput, rejectionReasonInput);
     setKycSubmissions(prev => prev.map(k => k.userId === rejectionModalItem.userId ? { ...k, status: 'rejected', rejectionReason: rejectionReasonInput } : k));
     showNotification(`❌ KYC for "${rejectionModalItem.fullName}" marked as Rejected.`);
     setRejectionModalItem(null);
   };
 
   const handleResetToPendingKYC = async (userId: string, name: string) => {
-    await updateAdminKYCStatus(userId, 'pending', 'Re-evaluation requested by administrator.');
+    await authService.decideKYC(userId, 'pending', undefined, 'Re-evaluation requested by administrator.');
     setKycSubmissions(prev => prev.map(k => k.userId === userId ? { ...k, status: 'pending' } : k));
     showNotification(`🔄 KYC for "${name}" moved back to Pending Review.`);
   };
@@ -1894,27 +1914,48 @@ export const AdminPage: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  {selectedKYCForInspect.docFileUrl ? (
-                    <img
-                      src={selectedKYCForInspect.docFileUrl}
-                      alt="Student ID Document"
-                      style={{ maxWidth: '100%', maxHeight: '340px', objectFit: 'contain' }}
-                    />
+                  {signedDocUrl ? (
+                    signedDocUrl.toLowerCase().includes('.pdf') ? (
+                      <div style={{ padding: '2rem', textAlign: 'center' }}>
+                        <FileText size={48} style={{ color: 'var(--accent-cyan)', marginBottom: '0.5rem' }} />
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                          PDF Document Proof
+                        </div>
+                        <a
+                          href={signedDocUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                        >
+                          <ExternalLink size={14} /> Open PDF in Secure Viewer
+                        </a>
+                      </div>
+                    ) : (
+                      <img
+                        src={signedDocUrl}
+                        alt="Student ID Document"
+                        style={{ maxWidth: '100%', maxHeight: '340px', objectFit: 'contain' }}
+                      />
+                    )
                   ) : (
                     <div style={{ padding: '3rem', color: 'var(--text-muted)' }}>
-                      No image proof attached.
+                      {selectedKYCForInspect.docFilePath ? 'Generating secure 60s signed preview...' : 'No document proof attached.'}
                     </div>
                   )}
                 </div>
-                {selectedKYCForInspect.docFileUrl && (
-                  <div style={{ textAlign: 'right', marginTop: '0.4rem' }}>
+                {signedDocUrl && (
+                  <div style={{ textAlign: 'right', marginTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <ShieldCheck size={13} /> Temporary signed access (60s expiry)
+                    </span>
                     <a
-                      href={selectedKYCForInspect.docFileUrl}
+                      href={signedDocUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                     >
-                      <ExternalLink size={13} /> Open Original in New Tab
+                      <ExternalLink size={13} /> Open in New Tab
                     </a>
                   </div>
                 )}

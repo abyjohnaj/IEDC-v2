@@ -552,9 +552,12 @@ export interface AdminKYCItem {
   avatar: string;
   status: 'unverified' | 'pending' | 'verified' | 'rejected';
   docType: string;
-  docNumber: string;
+  docNumber: string; // Masked value: '•••• •••• 1234'
+  docNumberLast4?: string;
   docFileName?: string;
-  docFileUrl?: string;
+  docFileUrl?: string; // Short-lived signed URL
+  docFilePath?: string; // Secure path in kyc-docs
+  retentionDeleteAt?: string;
   dob?: string;
   institution?: string;
   submittedAt?: string;
@@ -581,6 +584,7 @@ export async function fetchAdminKYCSubmissions(): Promise<AdminKYCItem[]> {
 
         kycRows.forEach(row => {
           const prof = profilesMap.get(row.user_id) || {};
+          const last4 = row.doc_number_last4 || (row.doc_number ? row.doc_number.slice(-4) : '****');
           list.push({
             id: row.id,
             userId: row.user_id,
@@ -593,9 +597,12 @@ export async function fetchAdminKYCSubmissions(): Promise<AdminKYCItem[]> {
             avatar: prof.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${row.user_id}`,
             status: row.status || 'unverified',
             docType: row.doc_type || 'student_id',
-            docNumber: row.doc_number || '',
+            docNumber: `•••• •••• ${last4}`,
+            docNumberLast4: last4,
             docFileName: row.doc_file_name,
-            docFileUrl: row.doc_file_url,
+            docFilePath: row.doc_file_path,
+            docFileUrl: undefined, // Must be opened via short-lived signed URL
+            retentionDeleteAt: row.retention_delete_at,
             dob: row.dob,
             institution: row.institution,
             submittedAt: row.submitted_at,

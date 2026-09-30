@@ -182,7 +182,7 @@ export const reportService = {
         `"${item.collegeId}"`,
         item.status.toUpperCase(),
         item.docType,
-        `"${item.docNumber}"`,
+        `"•••• •••• ${item.docNumberLast4 || (item.docNumber ? item.docNumber.replace(/\s+/g, '').slice(-4) : '****')}"`,
         `"${item.docFileName || 'N/A'}"`,
         `"${item.institution || 'BMCE'}"`,
         item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'N/A',
