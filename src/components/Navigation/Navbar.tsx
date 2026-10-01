@@ -13,6 +13,7 @@ import {
   useMarkAllNotificationsRead
 } from '../../hooks/useNotifications';
 import { formatTimeAgo } from '../../utils/formatTime';
+import { NavbarSearch } from './NavbarSearch';
 import '../../styles/notifications.css';
 
 export const Navbar: React.FC = () => {
@@ -115,6 +116,9 @@ export const Navbar: React.FC = () => {
 
         {/* Right Actions */}
         <div className="nav-actions">
+          {/* Global Search Box */}
+          <NavbarSearch />
+
           {/* Direct Link to Eureka 3D Library */}
           <Link
             to="/newsletter"
@@ -369,6 +373,10 @@ export const Navbar: React.FC = () => {
               </button>
             </div>
           )}
+
+          <div style={{ padding: '0.5rem 1rem' }}>
+            <NavbarSearch onSelectResult={() => setMobileMenuOpen(false)} />
+          </div>
 
           <Link to="/" onClick={() => setMobileMenuOpen(false)}>🏠 Home</Link>
           <Link to="/ideabox" onClick={() => setMobileMenuOpen(false)}>💡 IdeaBox Portal</Link>
