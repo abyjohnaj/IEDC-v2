@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NewsletterEdition } from '../../types';
-import { X, ChevronLeft, ChevronRight, ExternalLink, Calendar, User, BookOpen } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ExternalLink, Calendar, User, BookOpen, Layers } from 'lucide-react';
+import { NewsletterFlipbook } from './NewsletterFlipbook';
 
 interface NewsletterReaderProps {
   edition: NewsletterEdition;
@@ -9,6 +10,7 @@ interface NewsletterReaderProps {
   onNextEdition?: () => void;
   hasPrev?: boolean;
   hasNext?: boolean;
+  initialMode?: 'flipbook' | 'article';
 }
 
 export const NewsletterReader: React.FC<NewsletterReaderProps> = ({
@@ -17,14 +19,28 @@ export const NewsletterReader: React.FC<NewsletterReaderProps> = ({
   onPrevEdition,
   onNextEdition,
   hasPrev = true,
-  hasNext = true
+  hasNext = true,
+  initialMode = 'flipbook'
 }) => {
+  const [readerMode, setReaderMode] = useState<'flipbook' | 'article'>(initialMode);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
 
   // Reset page when edition changes
   useEffect(() => {
     setCurrentPageIndex(0);
   }, [edition.id]);
+
+  if (readerMode === 'flipbook') {
+    return (
+      <NewsletterFlipbook
+        edition={edition}
+        onClose={onClose}
+        onSwitchToTextMode={() => setReaderMode('article')}
+        onPrevEdition={onPrevEdition}
+        onNextEdition={onNextEdition}
+      />
+    );
+  }
 
   // Keyboard navigation
   useEffect(() => {
@@ -77,13 +93,24 @@ export const NewsletterReader: React.FC<NewsletterReaderProps> = ({
             </div>
           </div>
 
-          <button 
-            className="reader-close-btn"
-            onClick={onClose}
-            aria-label="Close reader"
-          >
-            <X size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              className="reader-page-btn"
+              onClick={() => setReaderMode('flipbook')}
+              style={{ background: '#b45309', color: '#fff', borderColor: '#d97706', cursor: 'pointer' }}
+              title="Switch to Visual WebP Flipbook"
+            >
+              <BookOpen size={15} />
+              <span>3D WebP Flipbook</span>
+            </button>
+            <button 
+              className="reader-close-btn"
+              onClick={onClose}
+              aria-label="Close reader"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Article Reading Canvas */}

@@ -49,11 +49,13 @@ import {
   Eye,
   CheckCheck,
   FileCheck,
-  Flame
+  Flame,
+  BookOpen
 } from 'lucide-react';
 import { AdminHackathonSection } from '../components/Admin/AdminHackathonSection';
 import { AdminIdeaBoxSection } from '../components/Admin/AdminIdeaBoxSection';
 import { AdminReportsSection } from '../components/Admin/AdminReportsSection';
+import { AdminNewsletterSection } from '../components/Admin/AdminNewsletterSection';
 import '../styles/admin.css';
 
 
@@ -72,8 +74,8 @@ export const AdminPage: React.FC = () => {
   const [password, setPassword] = useState('admin123');
   const [authError, setAuthError] = useState('');
 
-  // Top-level Navigation: Operations, KYC Verifications, Events & Programs, Hackathons, IdeaBox, Reports, Forum, Execom
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'kyc' | 'events' | 'hackathon' | 'ideabox' | 'reports' | 'forum' | 'execom'>('dashboard');
+  // Top-level Navigation: Operations, KYC Verifications, Events & Programs, Hackathons, IdeaBox, Reports, Forum, Execom, Newsletter
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'kyc' | 'events' | 'hackathon' | 'ideabox' | 'reports' | 'forum' | 'execom' | 'newsletter'>('dashboard');
   
   // Sub-tabs inside Events: Catalog, Registrations & Attendees, Startup Pitches
   const [eventsTab, setEventsTab] = useState<'catalog' | 'registrations' | 'pitches'>('catalog');
@@ -648,6 +650,11 @@ export const AdminPage: React.FC = () => {
               <MessageSquare size={18} /> Forum Threads ({forumThreads.length})
             </button>
           </li>
+          <li className={`menu-item ${activeSection === 'newsletter' ? 'active' : ''}`}>
+            <button onClick={() => setActiveSection('newsletter')}>
+              <BookOpen size={18} /> Eureka Newsletter
+            </button>
+          </li>
           <li className={`menu-item ${activeSection === 'execom' ? 'active' : ''}`}>
             <button onClick={() => setActiveSection('execom')}>
               <Users size={18} /> Execom & Roles
@@ -680,6 +687,7 @@ export const AdminPage: React.FC = () => {
             {activeSection === 'hackathon' && 'Hackathon Squads & Lablab Oversight'}
             {activeSection === 'ideabox' && 'IdeaBox Innovation Pipeline & Evaluation'}
             {activeSection === 'reports' && 'Administrative Reports & Required Datasets'}
+            {activeSection === 'newsletter' && 'Eureka Newsletter & PDF-to-WebP Engine'}
             {activeSection === 'forum' && 'Community Forum Moderation'}
             {activeSection === 'execom' && 'Executive Committee & Role Appointments'}
           </h2>
@@ -1642,6 +1650,11 @@ export const AdminPage: React.FC = () => {
           {/* SECTION: ADMINISTRATIVE REPORTS & ANALYTICS */}
           {activeSection === 'reports' && (
             <AdminReportsSection onNotify={showNotification} />
+          )}
+
+          {/* SECTION: NEWSLETTER & PDF-TO-WEBP PIPELINE */}
+          {activeSection === 'newsletter' && (
+            <AdminNewsletterSection />
           )}
 
           {/* SECTION 4: EXECOM TEAM & ROLE SELECTION */}

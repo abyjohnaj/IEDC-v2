@@ -100,6 +100,9 @@ export interface NewsletterEdition {
   highlights: string[];
   pdfUrl: string;
   flipHtmlUrl?: string;
+  pageWebpUrls?: string[];
+  totalPages?: number;
+  conversionStatus?: 'pending' | 'processing' | 'completed' | 'failed';
   pages: NewsletterPageContent[];
 }
 
