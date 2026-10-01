@@ -21,6 +21,7 @@ import {
   checkSubmissionDeadline
 } from '../utils/hackathonEnforcementRules';
 import { notificationService } from './notificationService';
+import { offlineQueueService } from './offlineQueueService';
 
 
 const HACKATHONS_STORAGE_KEY = 'iedc_hackathon_events';
@@ -431,6 +432,7 @@ export const hackathonService = {
     discordInviteUrl?: string;
     whatsappGroupUrl?: string;
   }): HackathonTeam {
+    offlineQueueService.assertOnlineForWrite('Creating a team');
     const teams = getStoredTeams();
     const teamId = `team_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const inviteCode = `${data.name.substring(0, 4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -524,6 +526,7 @@ export const hackathonService = {
   },
 
   async joinTeam(teamId: string, user: User, role: HackathonRole, note?: string): Promise<{ joined: boolean; pending: boolean; error?: string }> {
+    offlineQueueService.assertOnlineForWrite('Joining a team');
     const teams = getStoredTeams();
     const index = teams.findIndex(t => t.id === teamId);
     if (index === -1) return { joined: false, pending: false, error: 'Team not found' };
@@ -776,6 +779,19 @@ export const hackathonService = {
 
     const updated = [...current, newMsg];
     saveChat(teamId, updated);
+
+    if (!offlineQueueService.isOnline()) {
+      offlineQueueService.enqueueChatMessage({
+        teamId,
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        senderAvatar: msg.senderAvatar,
+        senderRole: msg.senderRole,
+        text: msg.text.trim(),
+        attachments: msg.attachments
+      });
+    }
+
     return newMsg;
   },
 
@@ -789,6 +805,7 @@ export const hackathonService = {
 
     // Strict Submission Deadline Check
     if (submission.status === 'submitted') {
+      offlineQueueService.assertOnlineForWrite('Submitting hackathon project');
       const hackathons = this.getHackathons();
       const hackathon = hackathons.find(h => h.id === team.hackathonId) || hackathons[0];
       if (hackathon && hackathon.endDate) {

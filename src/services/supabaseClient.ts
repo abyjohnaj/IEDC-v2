@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ForumDiscussion, RegistrationSubmission, EventItem } from '../types';
 import { initialForumDiscussions } from '../data/forumData';
 import { initialEventsData } from '../data/eventsData';
+import { offlineQueueService } from './offlineQueueService';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://quxwzqcbuksxxgpprztw.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1eHd6cWNidWtzeHhncHByenR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MDY4NDUsImV4cCI6MjEwNDk4Mjg0NX0.P_NWWDiY8yWgmYpSq2ExWhjNad872EwsZGo7td20DLs';
@@ -96,6 +97,7 @@ export async function fetchDiscussions(): Promise<ForumDiscussion[]> {
 }
 
 export async function createDiscussion(discussion: Omit<ForumDiscussion, 'id' | 'timestamp' | 'upvotes' | 'comments'>): Promise<ForumDiscussion> {
+  offlineQueueService.assertOnlineForWrite('Creating a forum discussion');
   const sb = getSupabase();
   if (sb) {
     try {
@@ -150,6 +152,7 @@ export async function createDiscussion(discussion: Omit<ForumDiscussion, 'id' | 
 }
 
 export async function addComment(discussionId: string, comment: { author: string; avatar: string; text: string }): Promise<boolean> {
+  offlineQueueService.assertOnlineForWrite('Posting a forum comment');
   const sb = getSupabase();
   if (sb) {
     try {

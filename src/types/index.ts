@@ -306,6 +306,7 @@ export interface IdeaMilestone {
 }
 
 export interface IdeaDraftData {
+  authorId?: string;
   title?: string;
   domain?: string;
   stage?: IdeaStage;

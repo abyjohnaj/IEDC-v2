@@ -15,6 +15,7 @@ import {
 import { getSupabase } from './supabaseClient';
 import { validateIdeaTransition } from '../utils/ideaTransitionRules';
 import { notificationService } from './notificationService';
+import { offlineQueueService } from './offlineQueueService';
 
 // Rich initial startup ideas for BMCE Innovators
 export const INITIAL_IDEAS: IdeaBoxSubmission[] = [
@@ -312,6 +313,7 @@ export const ideaBoxService = {
   },
 
   async submitIdea(submission: Omit<IdeaBoxSubmission, 'id' | 'upvotes' | 'upvoters' | 'commentsCount' | 'comments' | 'status' | 'createdAt'>): Promise<IdeaBoxSubmission> {
+    offlineQueueService.assertOnlineForWrite('Submitting an idea');
     const newIdeaId = `idea_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const now = new Date().toISOString();
 
@@ -367,6 +369,7 @@ export const ideaBoxService = {
    * Toggles upvote on an idea via the atomic RPC
    */
   async toggleUpvote(ideaId: string, userId: string): Promise<{ upvotes: number; userHasUpvoted: boolean }> {
+    offlineQueueService.assertOnlineForWrite('Voting on an idea');
     const sb = getSupabase();
     if (sb && !userId.startsWith('usr_')) {
       const { data, error } = await sb.rpc('upvote_idea', { p_idea_id: ideaId });
@@ -857,11 +860,19 @@ export const ideaBoxService = {
   },
 
   /**
-   * Server-side Draft Autosave (replaces localStorage)
+   * Server-side Draft Autosave (with Offline Queueing)
    */
   async saveIdeaDraft(draftData: IdeaDraftData): Promise<void> {
+    if (!offlineQueueService.isOnline()) {
+      offlineQueueService.enqueueIdeaDraft(draftData.authorId || 'currentUser', draftData);
+      return;
+    }
+
     const sb = getSupabase();
-    if (!sb) return;
+    if (!sb) {
+      offlineQueueService.enqueueIdeaDraft(draftData.authorId || 'currentUser', draftData);
+      return;
+    }
 
     const { error } = await sb.rpc('autosave_idea_draft', {
       p_draft_data: draftData,
@@ -869,13 +880,20 @@ export const ideaBoxService = {
 
     if (error) {
       console.warn('Failed to autosave idea draft:', error.message);
+      // Queue offline if server RPC fails
+      offlineQueueService.enqueueIdeaDraft(draftData.authorId || 'currentUser', draftData);
     }
   },
 
   /**
-   * Retrieve server-side draft
+   * Retrieve server-side draft (or offline queued draft if available)
    */
   async getIdeaDraft(): Promise<IdeaDraftData | null> {
+    const queuedDrafts = offlineQueueService.getQueuedIdeaDrafts();
+    if (queuedDrafts.length > 0) {
+      return queuedDrafts[queuedDrafts.length - 1].draftData as IdeaDraftData;
+    }
+
     const sb = getSupabase();
     if (!sb) return null;
 

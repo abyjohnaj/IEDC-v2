@@ -1,0 +1,26 @@
+{
+  "name": "IEDC BMCE - Innovation & Entrepreneurship Platform",
+  "short_name": "IEDC BMCE",
+  "description": "Innovation and Entrepreneurship Development Centre portal at Baselios Mathews II College of Engineering, Sasthamcotta, Kollam.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#090d16",
+  "theme_color": "#0b0f19",
+  "categories": ["education", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/assets/iedc_brand_logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/iedc_brand_logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

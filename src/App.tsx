@@ -11,6 +11,7 @@ import { HackathonPortalPage } from './pages/HackathonPortalPage';
 import { ForumPage } from './pages/ForumPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { AuthModal } from './components/Auth/AuthModal';
+import { OfflineBanner } from './components/UI/OfflineBanner';
 
 export const App: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <OfflineBanner />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/ideabox" element={<IdeaBoxPage />} />
