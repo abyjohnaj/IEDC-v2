@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, Send, Sparkles } from 'lucide-react';
+import { X, Send, Sparkles, AlertCircle } from 'lucide-react';
 import { submitRegistration } from '../../services/supabaseClient';
+import { turnstileService } from '../../services/turnstileService';
+import { TurnstileWidget } from '../UI/TurnstileWidget';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -21,6 +23,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [department, setDepartment] = useState('');
   const [semester, setSemester] = useState('S1/S2');
   const [overviewReason, setOverviewReason] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -33,6 +37,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+
+    try {
+      turnstileService.assertTokenPresent(turnstileToken, isIdeaSubmission ? 'Startup Idea Pitch' : 'Event Registration');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Please complete the bot check.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const res = await submitRegistration({
@@ -65,9 +78,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         </button>
 
         <div style={{ marginBottom: '1.5rem' }}>
-          <span className="eureka-badge" style={{ marginBottom: '0.6rem' }}>
-            {isIdeaSubmission ? '🚀 Incubation Portal' : '🎟️ Event Pass'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+            <img src="/assets/iedc_brand_logo.png" alt="IEDC Logo" className="logo-img" style={{ width: '30px', height: '30px' }} />
+            <span className="eureka-badge">
+              {isIdeaSubmission ? '🚀 Incubation Portal' : '🎟️ Event Pass'}
+            </span>
+          </div>
           <h2 style={{ fontSize: '1.6rem', marginBottom: '0.4rem' }} className="gradient-text">
             {modalTitle}
           </h2>
@@ -165,7 +181,30 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+          {errorMsg && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0.6rem 0.85rem',
+              borderRadius: '6px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid #ef4444',
+              color: '#fca5a5',
+              fontSize: '0.82rem',
+              marginBottom: '0.85rem'
+            }}>
+              <AlertCircle size={15} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <TurnstileWidget 
+            onVerify={token => setTurnstileToken(token)} 
+            action={isIdeaSubmission ? 'idea_pitch' : 'event_registration'}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.25rem' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>

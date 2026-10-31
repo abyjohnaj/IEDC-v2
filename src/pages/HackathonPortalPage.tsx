@@ -9,6 +9,7 @@ import {
   HackathonRole,
   TeamChatMessage,
   ProjectSubmission,
+  HackathonLeaderboardRow,
   User
 } from '../types';
 import {
@@ -40,7 +41,9 @@ import {
   Hash,
   Key,
   GitCommit,
-  AlertTriangle
+  AlertTriangle,
+  Trophy,
+  Scale
 } from 'lucide-react';
 import '../styles/hackathon.css';
 import {
@@ -64,8 +67,20 @@ export const HackathonPortalPage: React.FC = () => {
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [hackathon, setHackathon] = useState<HackathonEvent>(hackathonService.getActiveHackathon());
   const [teams, setTeams] = useState<HackathonTeam[]>([]);
-  const [activeTab, setActiveTab] = useState<'directory' | 'my-team' | 'create-team'>('directory');
+  const [activeTab, setActiveTab] = useState<'directory' | 'my-team' | 'create-team' | 'leaderboard' | 'jury'>('directory');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  // Leaderboard & Jury Scoring State
+  const [leaderboardRows, setLeaderboardRows] = useState<HackathonLeaderboardRow[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [evaluatingTeam, setEvaluatingTeam] = useState<HackathonTeam | null>(null);
+  const [scoreInnovation, setScoreInnovation] = useState<number>(23);
+  const [scoreTechnical, setScoreTechnical] = useState<number>(22);
+  const [scoreUIUX, setScoreUIUX] = useState<number>(24);
+  const [scorePresentation, setScorePresentation] = useState<number>(23);
+  const [juryFeedback, setJuryFeedback] = useState<string>('');
+  const [declaredNoConflict, setDeclaredNoConflict] = useState<boolean>(false);
+  const [submittingGrade, setSubmittingGrade] = useState<boolean>(false);
 
   // Filters for Team Directory
   const [searchQuery, setSearchQuery] = useState('');
@@ -434,6 +449,118 @@ export const HackathonPortalPage: React.FC = () => {
   const isLeaderOfActiveTeam = user && activeTeam && activeTeam.members.find(m => m.userId === user.id)?.isLeader;
   const isMemberOfActiveTeam = user && activeTeam && activeTeam.members.some(m => m.userId === user.id);
 
+  // Load official leaderboard
+  const loadLeaderboard = async () => {
+    setLoadingLeaderboard(true);
+    try {
+      const rows = await hackathonService.getLeaderboard(hackathon.id);
+      if (rows && rows.length > 0) {
+        setLeaderboardRows(rows);
+      } else {
+        // Fallback from submitted teams
+        const submitted = teams
+          .filter(t => t.projectSubmission?.score?.total)
+          .map(t => ({
+            teamId: t.id,
+            teamName: t.name,
+            track: t.track,
+            projectTitle: t.projectSubmission?.projectTitle,
+            totalScore: t.projectSubmission?.score?.total || 0,
+            judgesCount: 1,
+            rank: 0
+          }))
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .map((item, idx) => ({ ...item, rank: idx + 1 }));
+        setLeaderboardRows(submitted);
+      }
+    } catch {
+      // Fallback from submitted teams
+      const submitted = teams
+        .filter(t => t.projectSubmission?.score?.total)
+        .map(t => ({
+          teamId: t.id,
+          teamName: t.name,
+          track: t.track,
+          projectTitle: t.projectSubmission?.projectTitle,
+          totalScore: t.projectSubmission?.score?.total || 0,
+          judgesCount: 1,
+          rank: 0
+        }))
+        .sort((a, b) => b.totalScore - a.totalScore)
+        .map((item, idx) => ({ ...item, rank: idx + 1 }));
+      setLeaderboardRows(submitted);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'leaderboard') {
+      loadLeaderboard();
+    }
+  }, [activeTab, teams]);
+
+  const handleOpenJuryModal = (team: HackathonTeam) => {
+    setEvaluatingTeam(team);
+    if (team.projectSubmission?.score) {
+      setScoreInnovation(team.projectSubmission.score.innovation);
+      setScoreTechnical(team.projectSubmission.score.technical);
+      setScorePresentation(team.projectSubmission.score.presentation);
+      setScoreUIUX(team.projectSubmission.score.feasibility);
+      setJuryFeedback(team.projectSubmission.adminFeedback || '');
+    } else {
+      setScoreInnovation(22);
+      setScoreTechnical(22);
+      setScoreUIUX(22);
+      setScorePresentation(22);
+      setJuryFeedback('');
+    }
+    setDeclaredNoConflict(false);
+  };
+
+  const handleSubmitJuryScore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!evaluatingTeam) return;
+
+    if (!declaredNoConflict) {
+      alert('Please confirm the Conflict of Interest declaration to submit official jury scores.');
+      return;
+    }
+
+    if (!juryFeedback.trim()) {
+      alert('Please provide qualitative feedback to guide the student innovators.');
+      return;
+    }
+
+    setSubmittingGrade(true);
+    try {
+      const total = scoreInnovation + scoreTechnical + scoreUIUX + scorePresentation;
+      await hackathonService.gradeTeamSubmission(
+        evaluatingTeam.id,
+        {
+          innovation: scoreInnovation,
+          technical: scoreTechnical,
+          presentation: scorePresentation,
+          feasibility: scoreUIUX,
+          total
+        },
+        juryFeedback.trim(),
+        user?.fullName || 'Hackathon Juror'
+      );
+
+      showToast(`⭐ Evaluation submitted for "${evaluatingTeam.name}"! Total score: ${total}/100.`);
+      setEvaluatingTeam(null);
+      refreshTeams();
+      if (activeTab === 'leaderboard') {
+        loadLeaderboard();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit jury evaluation.');
+    } finally {
+      setSubmittingGrade(false);
+    }
+  };
+
   return (
     <div className="hackathon-page-root">
       <Navbar />
@@ -512,6 +639,25 @@ export const HackathonPortalPage: React.FC = () => {
             </button>
 
             <button
+              className={`hackathon-nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('leaderboard')}
+            >
+              <Trophy size={16} style={{ color: '#f59e0b' }} />
+              <span>Leaderboard & Ranks</span>
+            </button>
+
+            {(user?.role === 'Admin' || user?.role === 'Execom' || user?.role === 'Judge' || user?.role === 'Reviewer') && (
+              <button
+                className={`hackathon-nav-btn ${activeTab === 'jury' ? 'active' : ''}`}
+                onClick={() => setActiveTab('jury')}
+                style={{ borderColor: 'var(--accent-cyan)' }}
+              >
+                <Scale size={16} style={{ color: 'var(--accent-cyan)' }} />
+                <span>Jury Scoring Desk</span>
+              </button>
+            )}
+
+            <button
               className={`hackathon-nav-btn ${activeTab === 'create-team' ? 'active' : ''}`}
               onClick={() => {
                 if (!user) openAuthModal('signup');
@@ -519,7 +665,7 @@ export const HackathonPortalPage: React.FC = () => {
               }}
             >
               <Plus size={16} />
-              <span>Form New Hackathon Squad</span>
+              <span>Form Squad</span>
             </button>
 
             <button
@@ -1321,6 +1467,355 @@ export const HackathonPortalPage: React.FC = () => {
         </section>
       )}
 
+      {/* TAB 4: OFFICIAL LEADERBOARD & RESULTS */}
+      {activeTab === 'leaderboard' && (
+        <section className="container hackathon-section">
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '2rem',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Trophy size={24} style={{ color: '#f59e0b' }} />
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>
+                    Official Hackathon Leaderboard
+                  </h2>
+                </div>
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                  Evaluated across 4 rubric pillars: Innovation (25%), Architecture (25%), UI/UX (25%), and Practical Impact (25%).
+                </p>
+              </div>
+
+              <button
+                onClick={loadLeaderboard}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.82rem', padding: '0.45rem 0.9rem' }}
+              >
+                Refresh Rankings
+              </button>
+            </div>
+
+            {/* Deliberation notice if results not yet finalized and user not admin */}
+            {hackathon.status !== 'Completed' && user?.role !== 'Admin' && user?.role !== 'Execom' && (
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <Clock size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                  <strong>Jury Deliberation in Progress:</strong> Final rankings and scores are verified by the Nodal Evaluation Board before public release.
+                </div>
+              </div>
+            )}
+
+            {/* Podium for Top 3 */}
+            {leaderboardRows.length >= 3 && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '1.25rem',
+                marginBottom: '2rem'
+              }}>
+                {/* 1st Place */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                  border: '2px solid rgba(245, 158, 11, 0.5)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  order: 1
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🥇</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    1st Place Champion
+                  </div>
+                  <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '1.2rem', fontWeight: 800 }}>
+                    {leaderboardRows[0].teamName}
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', marginBottom: '0.75rem' }}>
+                    {leaderboardRows[0].track}
+                  </div>
+                  <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#f59e0b' }}>
+                    {leaderboardRows[0].totalScore} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ 100</span>
+                  </div>
+                </div>
+
+                {/* 2nd Place */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(148, 163, 184, 0.05) 100%)',
+                  border: '1px solid rgba(148, 163, 184, 0.4)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  order: 2
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🥈</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    1st Runner-Up
+                  </div>
+                  <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '1.2rem', fontWeight: 800 }}>
+                    {leaderboardRows[1].teamName}
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', marginBottom: '0.75rem' }}>
+                    {leaderboardRows[1].track}
+                  </div>
+                  <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#cbd5e1' }}>
+                    {leaderboardRows[1].totalScore} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ 100</span>
+                  </div>
+                </div>
+
+                {/* 3rd Place */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.12) 0%, rgba(217, 119, 6, 0.04) 100%)',
+                  border: '1px solid rgba(217, 119, 6, 0.35)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  order: 3
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🥉</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    2nd Runner-Up
+                  </div>
+                  <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '1.2rem', fontWeight: 800 }}>
+                    {leaderboardRows[2].teamName}
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', marginBottom: '0.75rem' }}>
+                    {leaderboardRows[2].track}
+                  </div>
+                  <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#d97706' }}>
+                    {leaderboardRows[2].totalScore} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ 100</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Complete Ranked Table */}
+            {loadingLeaderboard ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                Loading verified standings...
+              </div>
+            ) : leaderboardRows.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                No evaluated submissions yet. Check back during live jury presentations!
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Rank</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Squad & Project</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Track</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Jury Reviews</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Total Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardRows.map((row) => (
+                      <tr key={row.teamId} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.15s ease' }}>
+                        <td style={{ padding: '1rem', fontWeight: 800, fontSize: '1.05rem' }}>
+                          {row.rank === 1 ? '🥇 #1' : row.rank === 2 ? '🥈 #2' : row.rank === 3 ? '🥉 #3' : `#${row.rank}`}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{row.teamName}</div>
+                          {row.projectTitle && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {row.projectTitle}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span style={{
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            color: 'var(--accent-cyan)',
+                            borderRadius: '6px',
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.76rem',
+                            fontWeight: 600
+                          }}>
+                            {row.track}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
+                          {row.judgesCount} evaluation(s)
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, fontSize: '1.1rem', color: '#10b981' }}>
+                          {row.totalScore} / 100
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* TAB 5: JURY SCORING DESK */}
+      {activeTab === 'jury' && (
+        <section className="container hackathon-section">
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '2rem',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Scale size={24} style={{ color: 'var(--accent-cyan)' }} />
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>
+                    Hackathon Jury & Expert Reviewer Desk
+                  </h2>
+                </div>
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                  Score finalized projects against standardized criteria: Innovation, Architecture, UI/UX Polish, and Real-World Impact.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <span style={{
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  color: 'var(--accent-cyan)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '20px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700
+                }}>
+                  Evaluator: {user?.fullName || 'Juror'} ({user?.role || 'Jury Member'})
+                </span>
+              </div>
+            </div>
+
+            {/* Submitted Squads Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+              {teams
+                .filter(t => t.projectSubmission?.status === 'submitted')
+                .map(team => {
+                  const sub = team.projectSubmission!;
+                  const isGraded = Boolean(sub.score?.total);
+
+                  return (
+                    <div
+                      key={team.id}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: `1px solid ${isGraded ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'}`,
+                        borderRadius: 'var(--radius-md)',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <span style={{
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            color: 'var(--accent-cyan)',
+                            borderRadius: '6px',
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.72rem',
+                            fontWeight: 700
+                          }}>
+                            {team.track}
+                          </span>
+
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '12px',
+                            background: isGraded ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                            color: isGraded ? '#10b981' : '#f59e0b'
+                          }}>
+                            {isGraded ? `Graded: ${sub.score?.total}/100` : 'Pending Evaluation'}
+                          </span>
+                        </div>
+
+                        <h3 style={{ margin: '0 0 0.35rem 0', fontSize: '1.1rem', fontWeight: 800 }}>
+                          {team.name}
+                        </h3>
+                        <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                          {sub.projectTitle}: {sub.tagline || team.tagline}
+                        </p>
+
+                        {/* Artifact Links */}
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                          {sub.githubUrl && (
+                            <a
+                              href={sub.githubUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.74rem', padding: '0.25rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                            >
+                              <Github size={13} /> Code Repo
+                            </a>
+                          )}
+                          {sub.liveDemoUrl && (
+                            <a
+                              href={sub.liveDemoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.74rem', padding: '0.25rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                            >
+                              <Globe size={13} /> Live Demo
+                            </a>
+                          )}
+                          {sub.demoVideoUrl && (
+                            <a
+                              href={sub.demoVideoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.74rem', padding: '0.25rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                            >
+                              <Video size={13} /> Walkthrough
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button
+                        onClick={() => handleOpenJuryModal(team)}
+                        className="btn btn-primary"
+                        style={{
+                          width: '100%',
+                          fontSize: '0.85rem',
+                          padding: '0.6rem 1rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem'
+                        }}
+                      >
+                        <Scale size={15} />
+                        {isGraded ? 'Review / Update Evaluation' : 'Evaluate Project Rubric'}
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* JOIN SQUAD MODAL */}
       {/* Join Squad Modal */}
       {isJoinModalOpen && joinTargetTeam && (
@@ -1445,6 +1940,184 @@ export const HackathonPortalPage: React.FC = () => {
                     className="btn btn-primary"
                   >
                     Join Team
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* JURY RUBRIC EVALUATION MODAL */}
+      {evaluatingTeam && (
+        <div className="hackathon-modal-overlay" onClick={() => setEvaluatingTeam(null)}>
+          <div
+            className="hackathon-modal-card"
+            style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Scale size={18} color="var(--accent-cyan)" />
+                  Jury Evaluation: {evaluatingTeam.name}
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Track: {evaluatingTeam.track} • Project: {evaluatingTeam.projectSubmission?.projectTitle}
+                </span>
+              </div>
+              <button className="modal-close" onClick={() => setEvaluatingTeam(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitJuryScore}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* Score Sliders / Inputs */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
+                      1. Innovation & Novelty (25% weight)
+                    </label>
+                    <span style={{ fontWeight: 800, color: 'var(--accent-cyan)' }}>{scoreInnovation} / 25</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={25}
+                    value={scoreInnovation}
+                    onChange={e => setScoreInnovation(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Originality of problem-solving approach and intellectual property value.
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
+                      2. Technical Architecture & Code Quality (25% weight)
+                    </label>
+                    <span style={{ fontWeight: 800, color: 'var(--accent-cyan)' }}>{scoreTechnical} / 25</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={25}
+                    value={scoreTechnical}
+                    onChange={e => setScoreTechnical(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Robustness, scalability, hardware integration, and Git commit integrity.
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
+                      3. UI/UX & Working Prototype State (25% weight)
+                    </label>
+                    <span style={{ fontWeight: 800, color: 'var(--accent-cyan)' }}>{scoreUIUX} / 25</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={25}
+                    value={scoreUIUX}
+                    onChange={e => setScoreUIUX(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Visual appeal, user feedback cues, design consistency, and MVP functionality.
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
+                      4. Pitch Presentation & Practical Impact (25% weight)
+                    </label>
+                    <span style={{ fontWeight: 800, color: 'var(--accent-cyan)' }}>{scorePresentation} / 25</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={25}
+                    value={scorePresentation}
+                    onChange={e => setScorePresentation(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Market viability, Kerala/KTU impact, and clarity of live demonstration.
+                  </span>
+                </div>
+
+                {/* Total Calculated Score */}
+                <div style={{
+                  background: 'rgba(6, 182, 212, 0.08)',
+                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Total Weighted Score:</span>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#10b981' }}>
+                    {scoreInnovation + scoreTechnical + scoreUIUX + scorePresentation} / 100
+                  </span>
+                </div>
+
+                {/* Qualitative Feedback */}
+                <div>
+                  <label className="form-label">Qualitative Jury Review & Guidance Notes *</label>
+                  <textarea
+                    rows={4}
+                    required
+                    className="form-textarea"
+                    placeholder="Provide actionable feedback on architecture strengths, potential edge cases, and next prototype milestones..."
+                    value={juryFeedback}
+                    onChange={e => setJuryFeedback(e.target.value)}
+                  />
+                </div>
+
+                {/* Conflict of Interest Declaration */}
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.75rem'
+                }}>
+                  <label className="checkbox-label" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={declaredNoConflict}
+                      onChange={e => setDeclaredNoConflict(e.target.checked)}
+                      style={{ marginTop: '0.2rem' }}
+                    />
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      <strong>Conflict of Interest Confirmation:</strong> I confirm that I have no personal connection or direct team affiliation that biases this evaluation.
+                    </span>
+                  </label>
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setEvaluatingTeam(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingGrade}
+                    className="btn btn-primary"
+                  >
+                    {submittingGrade ? 'Publishing Grade...' : 'Submit Official Grade'}
                   </button>
                 </div>
               </div>

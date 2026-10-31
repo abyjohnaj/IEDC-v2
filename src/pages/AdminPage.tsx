@@ -56,6 +56,8 @@ import { AdminHackathonSection } from '../components/Admin/AdminHackathonSection
 import { AdminIdeaBoxSection } from '../components/Admin/AdminIdeaBoxSection';
 import { AdminReportsSection } from '../components/Admin/AdminReportsSection';
 import { AdminNewsletterSection } from '../components/Admin/AdminNewsletterSection';
+import { mfaService } from '../services/mfaService';
+import { AdminMfaModal } from '../components/Admin/AdminMfaModal';
 import '../styles/admin.css';
 
 
@@ -114,19 +116,26 @@ export const AdminPage: React.FC = () => {
   const [eventTitle, setEventTitle] = useState('');
   const [eventCategory, setEventCategory] = useState('Workshops');
   const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
   const [eventStatus, setEventStatus] = useState('Upcoming');
   const [eventLocation, setEventLocation] = useState('IEDC Innovation Hub, BMCE');
+  const [eventEntryFee, setEventEntryFee] = useState('Free Entry');
+  const [eventFestSlug, setEventFestSlug] = useState('');
   const [eventDesc, setEventDesc] = useState('');
   const [eventDetails, setEventDetails] = useState('');
   const [eventImage, setEventImage] = useState(IMAGE_PRESETS[0].url);
   const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const [pendingMfaAuth, setPendingMfaAuth] = useState<{ email: string; role: string } | null>(null);
 
   useEffect(() => {
-    const isAuth = sessionStorage.getItem('iedc_admin_auth') === 'true';
+    document.documentElement.setAttribute('data-theme', 'light');
+    const isAuth = sessionStorage.getItem('iedc_admin_auth') === 'true' && mfaService.isSessionMfaVerified();
     if (isAuth) {
       setIsAuthenticated(true);
       loadAdminData();
+    } else {
+      setIsAuthenticated(false);
     }
   }, []);
 
@@ -201,10 +210,9 @@ export const AdminPage: React.FC = () => {
       (email.toLowerCase() === 'admin@iedcbmce.in' || email.toLowerCase() === 'admin') &&
       password === 'admin123'
     ) {
-      sessionStorage.setItem('iedc_admin_auth', 'true');
-      setIsAuthenticated(true);
+      // Trigger mandatory MFA verification for Admin role
+      setPendingMfaAuth({ email: email.toLowerCase(), role: 'Admin' });
       setAuthError('');
-      loadAdminData();
     } else {
       setAuthError(
         isDemoEnabled
@@ -214,9 +222,20 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleMfaSuccess = () => {
+    sessionStorage.setItem('iedc_admin_auth', 'true');
+    mfaService.setSessionMfaVerified(email, 'Admin');
+    setIsAuthenticated(true);
+    setPendingMfaAuth(null);
+    loadAdminData();
+    showNotification('🔒 MFA verified: Administrative session active.');
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem('iedc_admin_auth');
+    mfaService.clearMfaSession();
     setIsAuthenticated(false);
+    setPendingMfaAuth(null);
   };
 
   const handleStatusChange = async (id: string, newStatus: any) => {
@@ -243,9 +262,12 @@ export const AdminPage: React.FC = () => {
     setEditingEventId(null);
     setEventTitle('');
     setEventCategory('Workshops');
-    setEventDate('Apr 2026');
+    setEventDate('Oct 2026');
+    setEventTime('10:00 AM - 04:00 PM');
     setEventStatus('Upcoming');
     setEventLocation('IEDC Innovation Hub, BMCE');
+    setEventEntryFee('Free Entry');
+    setEventFestSlug('');
     setEventDesc('');
     setEventDetails('');
     setEventImage(IMAGE_PRESETS[0].url);
@@ -259,8 +281,11 @@ export const AdminPage: React.FC = () => {
     setEventTitle(evt.title);
     setEventCategory(evt.category);
     setEventDate(evt.date);
+    setEventTime(evt.time || '');
     setEventStatus(evt.status);
     setEventLocation(evt.location || 'IEDC Innovation Hub, BMCE');
+    setEventEntryFee(evt.entryFee || 'Free Entry');
+    setEventFestSlug(evt.festPortalSlug || '');
     setEventDesc(evt.description);
     setEventDetails(evt.details || evt.description);
     setEventImage(evt.assetImage || IMAGE_PRESETS[0].url);
@@ -276,17 +301,25 @@ export const AdminPage: React.FC = () => {
 
     try {
       setIsSubmittingEvent(true);
+      const existing = editingEventId ? events.find(ev => ev.id === editingEventId) : null;
 
       const eventPayload: Omit<EventItem, 'id'> = {
         title: eventTitle.trim(),
         category: eventCategory,
         date: eventDate.trim() || 'Upcoming 2026',
+        time: eventTime.trim() || undefined,
         status: eventStatus,
         location: eventLocation.trim() || 'IEDC Hub, BMCE',
+        entryFee: eventEntryFee.trim() || undefined,
+        festPortalSlug: eventFestSlug.trim() || undefined,
         description: eventDesc.trim() || 'Join us for this exciting IEDC session exploring innovation and entrepreneurship.',
         details: eventDetails.trim() || eventDesc.trim() || 'Details, schedule, and prerequisites will be announced.',
         assetImage: eventImage.trim() || IMAGE_PRESETS[0].url,
-        fallbackImage: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80'
+        fallbackImage: existing?.fallbackImage || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
+        isMegaFest: existing?.isMegaFest,
+        isHackathon: existing?.isHackathon,
+        subEvents: existing?.subEvents,
+        speakers: existing?.speakers
       };
 
       if (editingEventId) {
@@ -323,11 +356,36 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleToggleEventStatus = async (evt: EventItem) => {
-    const newStatus = evt.status === 'Upcoming' ? 'Completed' : 'Upcoming';
+    const newStatus = evt.status === 'Completed' ? 'Upcoming' : 'Completed';
     const updated: EventItem = { ...evt, status: newStatus };
     await updateEvent(updated);
     setEvents(prev => prev.map(e => e.id === evt.id ? updated : e));
-    showNotification(`Event status set to ${newStatus}.`);
+    showNotification(`Event "${evt.title}" marked as ${newStatus}.`);
+  };
+
+  const exportEventsCSV = () => {
+    if (events.length === 0) return alert('No events to export.');
+    const headers = ['ID', 'Title', 'Category', 'Date', 'Time', 'Status', 'Location', 'EntryFee', 'Attendees'];
+    const rows = events.map(e => [
+      `"${e.id}"`,
+      `"${e.title.replace(/"/g, '""')}"`,
+      `"${e.category}"`,
+      `"${e.date}"`,
+      `"${e.time || ''}"`,
+      `"${e.status}"`,
+      `"${(e.location || '').replace(/"/g, '""')}"`,
+      `"${(e.entryFee || '').replace(/"/g, '""')}"`,
+      `"${getRegistrationCountForEvent(e.title)}"`
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `iedc_events_catalog_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getRegistrationCountForEvent = (eventTitle: string) => {
@@ -459,8 +517,8 @@ export const AdminPage: React.FC = () => {
 
   // Filtered Events Catalog
   const filteredEvents = events.filter(evt => {
-    const matchCategory = eventCategoryFilter === 'all' || evt.category === eventCategoryFilter;
-    const matchStatus = eventStatusFilter === 'all' || evt.status === eventStatusFilter;
+    const matchCategory = eventCategoryFilter === 'all' || evt.category.toLowerCase() === eventCategoryFilter.toLowerCase();
+    const matchStatus = eventStatusFilter === 'all' || evt.status.toLowerCase() === eventStatusFilter.toLowerCase();
     const q = eventSearch.toLowerCase().trim();
     const matchQuery =
       !q ||
@@ -565,15 +623,25 @@ export const AdminPage: React.FC = () => {
           </form>
 
           <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            💡 Demo Credentials: <code>admin@iedcbmce.in</code> / <code>admin123</code>
+            💡 Demo Credentials: <code>admin@iedcbmce.in</code> / <code>admin123</code> • 🔒 MFA Enforced
           </div>
         </div>
+
+        {/* MFA Authenticator Challenge Modal */}
+        {pendingMfaAuth && (
+          <AdminMfaModal
+            email={pendingMfaAuth.email}
+            role={pendingMfaAuth.role}
+            onSuccess={handleMfaSuccess}
+            onCancel={() => setPendingMfaAuth(null)}
+          />
+        )}
       </div>
     );
   }
 
   return (
-    <div className="admin-layout">
+    <div className="admin-layout" data-theme="light">
       {/* Toast notification */}
       {notificationMsg && (
         <div
@@ -604,7 +672,7 @@ export const AdminPage: React.FC = () => {
       {/* Sidebar - No separate registrations option; everything is managed under Events & Programs! */}
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
-          <span style={{ fontSize: '1.5rem' }}>🚀</span>
+          <img src="/assets/iedc_brand_logo.png" alt="IEDC BMCE Logo" className="logo-img" style={{ width: '40px', height: '40px' }} />
           <div>
             <div className="sidebar-brand-title">
               IEDC <span style={{ color: 'var(--accent-cyan)' }}>BMCE</span>
@@ -1219,8 +1287,58 @@ export const AdminPage: React.FC = () => {
               {/* SUB-VIEW A: EVENTS CATALOG */}
               {eventsTab === 'catalog' && (
                 <div>
+                  {/* KPI Quick Stats Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <div style={{ background: 'rgba(0, 242, 254, 0.1)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: '10px' }}>
+                        <Calendar size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Events</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>{events.length}</div>
+                      </div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.6rem', borderRadius: '10px' }}>
+                        <Sparkles size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Upcoming & Live</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10b981' }}>
+                          {events.filter(e => e.status !== 'Completed').length}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <div style={{ background: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', padding: '0.6rem', borderRadius: '10px' }}>
+                        <RotateCcw size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Past Archive</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#cbd5e1' }}>
+                          {events.filter(e => e.status === 'Completed').length}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <div style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '0.6rem', borderRadius: '10px' }}>
+                        <Ticket size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Passes</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f59e0b' }}>
+                          {eventRegistrations.length}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter and Action Bar */}
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', flexGrow: 1, maxWidth: 650 }}>
+                    <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', flexGrow: 1, maxWidth: 750 }}>
                       <div style={{ flexGrow: 1, position: 'relative', minWidth: 220 }}>
                         <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                         <input
@@ -1243,6 +1361,10 @@ export const AdminPage: React.FC = () => {
                         <option value="Workshops">Workshops</option>
                         <option value="Bootcamps">Bootcamps</option>
                         <option value="Fests">Fests</option>
+                        <option value="Hackathons">Hackathons</option>
+                        <option value="Talks">Talks</option>
+                        <option value="Gaming">Gaming</option>
+                        <option value="Movies">Movies</option>
                         <option value="Orientation">Orientation</option>
                       </select>
 
@@ -1254,13 +1376,20 @@ export const AdminPage: React.FC = () => {
                       >
                         <option value="all">All Statuses</option>
                         <option value="Upcoming">Upcoming Only</option>
-                        <option value="Completed">Completed Only</option>
+                        <option value="Completed">Completed Archive</option>
+                        <option value="Featured">Featured Spotlight</option>
                       </select>
                     </div>
 
-                    <button className="btn btn-primary" onClick={openCreateEventModal}>
-                      <Plus size={16} /> Create New Event
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary" onClick={exportEventsCSV} title="Export Events Catalog to CSV">
+                        <Download size={15} /> Export CSV
+                      </button>
+
+                      <button className="btn btn-primary" onClick={openCreateEventModal}>
+                        <Plus size={16} /> Create New Event
+                      </button>
+                    </div>
                   </div>
 
                   {filteredEvents.length === 0 ? (
@@ -1302,9 +1431,17 @@ export const AdminPage: React.FC = () => {
                             </div>
 
                             <div className="admin-event-content">
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
-                                <Calendar size={13} style={{ color: 'var(--accent-cyan)' }} />
-                                {evt.date}
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <Calendar size={13} style={{ color: 'var(--accent-cyan)' }} />
+                                  <span>{evt.date}</span>
+                                </div>
+                                {evt.time && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--accent-cyan)', fontSize: '0.75rem' }}>
+                                    <Clock size={12} />
+                                    <span>{evt.time}</span>
+                                  </div>
+                                )}
                               </div>
 
                               <h3 style={{ fontSize: '1.15rem', lineHeight: 1.3, marginBottom: '0.5rem', color: '#fff' }}>
@@ -1315,9 +1452,16 @@ export const AdminPage: React.FC = () => {
                                 {evt.description}
                               </p>
 
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '1rem' }}>
-                                <MapPin size={13} />
-                                {evt.location}
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.3rem', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <MapPin size={13} />
+                                  <span>{evt.location}</span>
+                                </div>
+                                {evt.entryFee && (
+                                  <span style={{ fontSize: '0.72rem', background: 'rgba(0, 242, 254, 0.08)', color: 'var(--accent-cyan)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
+                                    {evt.entryFee}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Attendee Roster Jump Button */}
@@ -1348,13 +1492,13 @@ export const AdminPage: React.FC = () => {
                                   style={{
                                     padding: '0.45rem 0.8rem',
                                     fontSize: '0.82rem',
-                                    color: evt.status === 'Upcoming' ? '#10b981' : '#f59e0b',
-                                    borderColor: evt.status === 'Upcoming' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'
+                                    color: evt.status === 'Completed' ? '#10b981' : '#f59e0b',
+                                    borderColor: evt.status === 'Completed' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'
                                   }}
                                   onClick={() => handleToggleEventStatus(evt)}
-                                  title={evt.status === 'Upcoming' ? 'Mark as Completed' : 'Mark as Upcoming'}
+                                  title={evt.status === 'Completed' ? 'Move to Upcoming Events' : 'Mark as Completed (Move to Past Archive)'}
                                 >
-                                  {evt.status === 'Upcoming' ? 'Mark Done' : 'Reactivate'}
+                                  {evt.status === 'Completed' ? 'Reactivate' : 'Mark Done'}
                                 </button>
 
                                 <button
@@ -1675,9 +1819,9 @@ export const AdminPage: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(3, 7, 18, 0.85)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             padding: '1.5rem',
             opacity: 1,
             visibility: 'visible'
@@ -1691,27 +1835,28 @@ export const AdminPage: React.FC = () => {
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
-              background: '#0d1527',
-              border: '1px solid rgba(0, 242, 254, 0.3)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 242, 254, 0.2)',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
               borderRadius: '16px',
               padding: '2rem',
               position: 'relative',
               opacity: 1,
-              visibility: 'visible'
+              visibility: 'visible',
+              color: '#0f172a'
             }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <div style={{ background: 'rgba(0, 242, 254, 0.15)', color: 'var(--accent-cyan)', padding: '0.4rem', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ background: 'rgba(2, 132, 199, 0.1)', color: '#0284c7', padding: '0.4rem', borderRadius: 'var(--radius-sm)' }}>
                   {editingEventId ? <Edit3 size={20} /> : <Plus size={20} />}
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '1.35rem', margin: 0 }}>
+                  <h2 style={{ fontSize: '1.35rem', margin: 0, color: '#0f172a' }}>
                     {editingEventId ? 'Edit Event' : 'Create New Event'}
                   </h2>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
                     {editingEventId ? 'Modify event parameters and publish updates.' : 'Add a workshop, hackathon, or bootcamp to the official calendar.'}
                   </div>
                 </div>
@@ -1750,6 +1895,10 @@ export const AdminPage: React.FC = () => {
                     <option value="Workshops">Workshops</option>
                     <option value="Bootcamps">Bootcamps</option>
                     <option value="Fests">Fests</option>
+                    <option value="Hackathons">Hackathons</option>
+                    <option value="Talks">Talks</option>
+                    <option value="Gaming">Gaming</option>
+                    <option value="Movies">Movies</option>
                     <option value="Orientation">Orientation</option>
                   </select>
                 </div>
@@ -1761,8 +1910,8 @@ export const AdminPage: React.FC = () => {
                     value={eventStatus}
                     onChange={e => setEventStatus(e.target.value)}
                   >
-                    <option value="Upcoming">Upcoming (Active Registration)</option>
-                    <option value="Completed">Completed (Past Event)</option>
+                    <option value="Upcoming">Upcoming (Active Timeline)</option>
+                    <option value="Completed">Completed (Past Archive)</option>
                     <option value="Featured">Featured Spotlight</option>
                   </select>
                 </div>
@@ -1770,17 +1919,30 @@ export const AdminPage: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label className="form-label">Date & Time *</label>
+                  <label className="form-label">Event Date *</label>
                   <input
                     type="text"
                     className="form-input"
                     value={eventDate}
                     onChange={e => setEventDate(e.target.value)}
-                    placeholder="e.g. Apr 22, 2026 • 10:00 AM"
+                    placeholder="e.g. Oct 16–18, 2026"
                     required
                   />
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label">Time / Schedule</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={eventTime}
+                    onChange={e => setEventTime(e.target.value)}
+                    placeholder="e.g. 10:00 AM - 04:00 PM"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">Location / Venue *</label>
                   <input
@@ -1792,6 +1954,28 @@ export const AdminPage: React.FC = () => {
                     required
                   />
                 </div>
+
+                <div className="form-group">
+                  <label className="form-label">Entry Fee / Access Pass</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={eventEntryFee}
+                    onChange={e => setEventEntryFee(e.target.value)}
+                    placeholder="e.g. Free Entry or ₹199 External"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fest Portal Slug (Optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={eventFestSlug}
+                  onChange={e => setEventFestSlug(e.target.value)}
+                  placeholder="e.g. ekah-2026 (links directly to fest portal)"
+                />
               </div>
 
               {/* Poster Image URL & Quick Preset Thumbnails */}

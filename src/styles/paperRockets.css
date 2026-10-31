@@ -16,25 +16,91 @@
 }
 
 .rocket-contrail {
-  stroke: #0284c7;
+  stroke: #000000;
   stroke-linecap: round;
   stroke-dasharray: 6 8;
   stroke-width: 2.4;
   fill: none;
-  filter: drop-shadow(0 1px 2px rgba(2, 132, 199, 0.3));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
   transition: opacity 0.1s linear;
 }
 
 .notebook-hero .rocket-contrail {
-  stroke: #0284c7;
+  stroke: #000000;
   stroke-linecap: round;
   stroke-dasharray: 6 8;
   stroke-width: 2.4;
   fill: none;
-  filter: drop-shadow(0 1px 2px rgba(2, 132, 199, 0.3));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
-[data-theme="light"] .rocket-contrail {
-  stroke: #0284c7;
+[data-theme="light"] .rocket-contrail,
+[data-theme="dark"] .rocket-contrail {
+  stroke: #000000;
 }
+
+/* ==========================================================================
+   SCROLL-TRIGGERED BIG PAPER ROCKET TRANSITION
+   ========================================================================== */
+
+.big-scroll-rocket-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
+  overflow: visible;
+  transition: opacity 0.2s ease;
+}
+
+.big-rocket-contrail {
+  stroke: #0f172a;
+  stroke-linecap: round;
+  stroke-dasharray: 8 10;
+  stroke-width: 3.2;
+  fill: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+[data-theme="dark"] .big-rocket-contrail {
+  stroke: #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.45));
+}
+
+.hero-scroll-launch-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-top: 2rem;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.hero-scroll-launch-hint:hover {
+  color: var(--accent-cyan);
+  transform: translateY(2px);
+}
+
+.hero-scroll-launch-hint .scroll-arrow-anim {
+  animation: bounceDown 1.8s ease-in-out infinite;
+}
+
+@keyframes bounceDown {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
 

@@ -1,6 +1,24 @@
 import { HackathonTeam, IdeaBoxSubmission, RegistrationSubmission } from '../types';
 import { AdminKYCItem } from './supabaseClient';
 
+/**
+ * Sanitizes a cell value to prevent Formula Injection (CWE-1236 / CSV Injection)
+ * when opened in spreadsheet software (Excel, Google Sheets, LibreOffice).
+ * If the value begins with '=', '+', '-', '@', '\t', or '\r', a leading apostrophe
+ * is prepended to neutralize formula execution.
+ * RFC-4180 internal quotes are doubled and the entire string is wrapped in quotes.
+ */
+export function sanitizeCSVField(val: unknown): string {
+  if (val === null || val === undefined) {
+    return '""';
+  }
+  const str = String(val);
+  // Neutralize dangerous spreadsheet prefixes: =, +, -, @, \t, \r (even if preceded by spaces)
+  const isDangerous = /^[=+\-@\t\r]/.test(str) || /^[ \f\v]+[=+\-@\t\r]/.test(str);
+  const safeStr = isDangerous ? `'${str}` : str;
+  return `"${safeStr.replace(/"/g, '""')}"`;
+}
+
 export const reportService = {
   // 1. Generate CSV for Hackathon Teams & Submissions
   generateHackathonReportCSV(teams: HackathonTeam[]): string {
@@ -38,31 +56,31 @@ export const reportService = {
       const sub = t.projectSubmission;
 
       return [
-        `"${t.name.replace(/"/g, '""')}"`,
-        `"${t.hackathonTitle.replace(/"/g, '""')}"`,
-        `"${t.track.replace(/"/g, '""')}"`,
-        `"${leader ? leader.name.replace(/"/g, '""') : 'N/A'}"`,
-        `"${leader ? leader.email : 'N/A'}"`,
-        t.members.length,
-        `"${membersStr.replace(/"/g, '""')}"`,
-        t.isOpen ? 'Yes (Open)' : 'No (Closed)',
-        `"${t.rolesNeeded.join(', ')}"`,
-        `"${t.discordInviteUrl || 'None'}"`,
-        `"${t.whatsappGroupUrl || 'None'}"`,
-        `"${t.githubOrgUrl || 'None'}"`,
-        sub ? sub.status.toUpperCase() : 'NO SUBMISSION',
-        `"${sub?.projectTitle ? sub.projectTitle.replace(/"/g, '""') : 'N/A'}"`,
-        `"${sub?.techStack ? sub.techStack.join(', ') : 'N/A'}"`,
-        `"${sub?.githubUrl || 'N/A'}"`,
-        `"${sub?.demoVideoUrl || 'N/A'}"`,
-        `"${sub?.liveDemoUrl || 'N/A'}"`,
-        sub?.score?.total ?? 'Unscored',
-        sub?.score?.innovation ?? 'N/A',
-        sub?.score?.technical ?? 'N/A',
-        sub?.score?.presentation ?? 'N/A',
-        sub?.score?.feasibility ?? 'N/A',
-        `"${sub?.adminFeedback ? sub.adminFeedback.replace(/"/g, '""') : 'Pending Feedback'}"`,
-        `"${sub?.reviewedBy ? sub.reviewedBy.replace(/"/g, '""') : 'N/A'}"`
+        sanitizeCSVField(t.name),
+        sanitizeCSVField(t.hackathonTitle),
+        sanitizeCSVField(t.track),
+        sanitizeCSVField(leader ? leader.name : 'N/A'),
+        sanitizeCSVField(leader ? leader.email : 'N/A'),
+        sanitizeCSVField(t.members.length),
+        sanitizeCSVField(membersStr),
+        sanitizeCSVField(t.isOpen ? 'Yes (Open)' : 'No (Closed)'),
+        sanitizeCSVField(t.rolesNeeded.join(', ')),
+        sanitizeCSVField(t.discordInviteUrl || 'None'),
+        sanitizeCSVField(t.whatsappGroupUrl || 'None'),
+        sanitizeCSVField(t.githubOrgUrl || 'None'),
+        sanitizeCSVField(sub ? sub.status.toUpperCase() : 'NO SUBMISSION'),
+        sanitizeCSVField(sub?.projectTitle || 'N/A'),
+        sanitizeCSVField(sub?.techStack ? sub.techStack.join(', ') : 'N/A'),
+        sanitizeCSVField(sub?.githubUrl || 'N/A'),
+        sanitizeCSVField(sub?.demoVideoUrl || 'N/A'),
+        sanitizeCSVField(sub?.liveDemoUrl || 'N/A'),
+        sanitizeCSVField(sub?.score?.total ?? 'Unscored'),
+        sanitizeCSVField(sub?.score?.innovation ?? 'N/A'),
+        sanitizeCSVField(sub?.score?.technical ?? 'N/A'),
+        sanitizeCSVField(sub?.score?.presentation ?? 'N/A'),
+        sanitizeCSVField(sub?.score?.feasibility ?? 'N/A'),
+        sanitizeCSVField(sub?.adminFeedback || 'Pending Feedback'),
+        sanitizeCSVField(sub?.reviewedBy || 'N/A')
       ].join(',');
     });
 
@@ -93,23 +111,23 @@ export const reportService = {
 
     const rows = ideas.map(idea => {
       return [
-        idea.id,
-        `"${idea.title.replace(/"/g, '""')}"`,
-        `"${idea.domain.replace(/"/g, '""')}"`,
-        idea.stage,
-        `"${idea.authorName.replace(/"/g, '""')}"`,
-        idea.authorRole,
-        `"${idea.authorDepartment || 'N/A'}"`,
-        idea.authorEmail,
-        idea.upvotes,
-        idea.commentsCount,
-        `"${idea.estimatedBudget || 'N/A'}"`,
-        idea.status,
-        idea.adminRating || 'Not Rated',
-        `"${idea.incubatorTrackAssigned ? idea.incubatorTrackAssigned.replace(/"/g, '""') : 'Unassigned'}"`,
-        `"${idea.adminFeedback ? idea.adminFeedback.replace(/"/g, '""') : 'No Feedback Provided Yet'}"`,
-        `"${idea.adminReviewedBy || 'N/A'}"`,
-        new Date(idea.createdAt).toLocaleDateString()
+        sanitizeCSVField(idea.id),
+        sanitizeCSVField(idea.title),
+        sanitizeCSVField(idea.domain),
+        sanitizeCSVField(idea.stage),
+        sanitizeCSVField(idea.authorName),
+        sanitizeCSVField(idea.authorRole),
+        sanitizeCSVField(idea.authorDepartment || 'N/A'),
+        sanitizeCSVField(idea.authorEmail),
+        sanitizeCSVField(idea.upvotes),
+        sanitizeCSVField(idea.commentsCount),
+        sanitizeCSVField(idea.estimatedBudget || 'N/A'),
+        sanitizeCSVField(idea.status),
+        sanitizeCSVField(idea.adminRating || 'Not Rated'),
+        sanitizeCSVField(idea.incubatorTrackAssigned || 'Unassigned'),
+        sanitizeCSVField(idea.adminFeedback || 'No Feedback Provided Yet'),
+        sanitizeCSVField(idea.adminReviewedBy || 'N/A'),
+        sanitizeCSVField(new Date(idea.createdAt).toLocaleDateString())
       ].join(',');
     });
 
@@ -134,17 +152,17 @@ export const reportService = {
 
     const rows = registrations.map(reg => {
       return [
-        reg.id || 'N/A',
-        reg.type,
-        `"${(reg.eventName || 'General Innovation').replace(/"/g, '""')}"`,
-        `"${reg.fullName.replace(/"/g, '""')}"`,
-        reg.email,
-        `"${reg.phone}"`,
-        `"${reg.department}"`,
-        reg.semester,
-        reg.status || 'Pending',
-        `"${(reg.overviewReason || '').replace(/"/g, '""')}"`,
-        reg.created_at ? new Date(reg.created_at).toLocaleDateString() : 'N/A'
+        sanitizeCSVField(reg.id || 'N/A'),
+        sanitizeCSVField(reg.type),
+        sanitizeCSVField(reg.eventName || 'General Innovation'),
+        sanitizeCSVField(reg.fullName),
+        sanitizeCSVField(reg.email),
+        sanitizeCSVField(reg.phone || 'N/A'),
+        sanitizeCSVField(reg.department || 'N/A'),
+        sanitizeCSVField(reg.semester || 'N/A'),
+        sanitizeCSVField(reg.status || 'Pending'),
+        sanitizeCSVField(reg.overviewReason || ''),
+        sanitizeCSVField(reg.created_at ? new Date(reg.created_at).toLocaleDateString() : 'N/A')
       ].join(',');
     });
 
@@ -173,21 +191,21 @@ export const reportService = {
 
     const rows = kycList.map(item => {
       return [
-        item.userId,
-        `"${item.fullName.replace(/"/g, '""')}"`,
-        item.email,
-        `"${item.phone || 'N/A'}"`,
-        `"${item.department}"`,
-        item.semester,
-        `"${item.collegeId}"`,
-        item.status.toUpperCase(),
-        item.docType,
-        `"•••• •••• ${item.docNumberLast4 || (item.docNumber ? item.docNumber.replace(/\s+/g, '').slice(-4) : '****')}"`,
-        `"${item.docFileName || 'N/A'}"`,
-        `"${item.institution || 'BMCE'}"`,
-        item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'N/A',
-        item.verifiedAt ? new Date(item.verifiedAt).toLocaleDateString() : 'N/A',
-        `"${(item.adminRemarks || item.rejectionReason || '').replace(/"/g, '""')}"`
+        sanitizeCSVField(item.userId),
+        sanitizeCSVField(item.fullName),
+        sanitizeCSVField(item.email),
+        sanitizeCSVField(item.phone || 'N/A'),
+        sanitizeCSVField(item.department),
+        sanitizeCSVField(item.semester),
+        sanitizeCSVField(item.collegeId),
+        sanitizeCSVField(item.status.toUpperCase()),
+        sanitizeCSVField(item.docType),
+        sanitizeCSVField(`•••• •••• ${item.docNumberLast4 || (item.docNumber ? item.docNumber.replace(/\s+/g, '').slice(-4) : '****')}`),
+        sanitizeCSVField(item.docFileName || 'N/A'),
+        sanitizeCSVField(item.institution || 'BMCE'),
+        sanitizeCSVField(item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'N/A'),
+        sanitizeCSVField(item.verifiedAt ? new Date(item.verifiedAt).toLocaleDateString() : 'N/A'),
+        sanitizeCSVField(item.adminRemarks || item.rejectionReason || '')
       ].join(',');
     });
 
@@ -195,7 +213,10 @@ export const reportService = {
   },
 
   // 5. Generate RFC-4180 CSV for Hackathon Official Rankings
-  generateHackathonRankingsCSV(rankings: Array<{ rank: number; teamName: string; track: string; projectTitle?: string; totalScore: number; judgesCount: number }>, hackathonTitle?: string): string {
+  generateHackathonRankingsCSV(
+    rankings: Array<{ rank: number; teamName: string; track: string; projectTitle?: string; totalScore: number; judgesCount: number }>, 
+    hackathonTitle?: string
+  ): string {
     const headers = [
       'Rank',
       'Team Name',
@@ -207,13 +228,13 @@ export const reportService = {
     ];
 
     const rows = rankings.map(r => [
-      r.rank,
-      `"${r.teamName.replace(/"/g, '""')}"`,
-      `"${r.track.replace(/"/g, '""')}"`,
-      `"${(r.projectTitle || 'N/A').replace(/"/g, '""')}"`,
-      r.totalScore.toFixed(2),
-      r.judgesCount,
-      `"${(hackathonTitle || 'BMCE Hackathon').replace(/"/g, '""')}"`
+      sanitizeCSVField(r.rank),
+      sanitizeCSVField(r.teamName),
+      sanitizeCSVField(r.track),
+      sanitizeCSVField(r.projectTitle || 'N/A'),
+      sanitizeCSVField(r.totalScore.toFixed(2)),
+      sanitizeCSVField(r.judgesCount),
+      sanitizeCSVField(hackathonTitle || 'BMCE Hackathon')
     ].join(','));
 
     return [headers.join(','), ...rows].join('\n');
@@ -243,14 +264,14 @@ export const reportService = {
     const rows = scoreSheets.map(s => {
       const weighted = (s.score * s.weight).toFixed(2);
       return [
-        `"${s.teamName.replace(/"/g, '""')}"`,
-        `"${s.track.replace(/"/g, '""')}"`,
-        `"${s.judgeName.replace(/"/g, '""')}"`,
-        `"${s.criterionName.replace(/"/g, '""')}"`,
-        s.weight,
-        s.score,
-        weighted,
-        `"${(s.feedback || '').replace(/"/g, '""')}"`
+        sanitizeCSVField(s.teamName),
+        sanitizeCSVField(s.track),
+        sanitizeCSVField(s.judgeName),
+        sanitizeCSVField(s.criterionName),
+        sanitizeCSVField(s.weight),
+        sanitizeCSVField(s.score),
+        sanitizeCSVField(weighted),
+        sanitizeCSVField(s.feedback || '')
       ].join(',');
     });
 
@@ -271,4 +292,3 @@ export const reportService = {
     URL.revokeObjectURL(url);
   }
 };
-

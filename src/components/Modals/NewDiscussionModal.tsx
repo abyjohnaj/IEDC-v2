@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { X, MessageSquare, Plus } from 'lucide-react';
+import { X, MessageSquare, Plus, AlertCircle } from 'lucide-react';
 import { createDiscussion } from '../../services/supabaseClient';
 import { ForumDiscussion } from '../../types';
+import { turnstileService } from '../../services/turnstileService';
+import { TurnstileWidget } from '../UI/TurnstileWidget';
 
 interface NewDiscussionModalProps {
   isOpen: boolean;
@@ -20,12 +22,23 @@ export const NewDiscussionModal: React.FC<NewDiscussionModalProps> = ({
   const [authorName, setAuthorName] = useState('');
   const [authorRole, setAuthorRole] = useState('');
   const [rolesNeededInput, setRolesNeededInput] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+
+    try {
+      turnstileService.assertTokenPresent(turnstileToken, 'Forum Discussion');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Please complete the bot check.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const roles = rolesNeededInput
@@ -142,7 +155,30 @@ export const NewDiscussionModal: React.FC<NewDiscussionModalProps> = ({
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+          {errorMsg && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0.6rem 0.85rem',
+              borderRadius: '6px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid #ef4444',
+              color: '#fca5a5',
+              fontSize: '0.82rem',
+              marginBottom: '0.85rem'
+            }}>
+              <AlertCircle size={15} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <TurnstileWidget 
+            onVerify={token => setTurnstileToken(token)} 
+            action="new_forum_thread"
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.25rem' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>

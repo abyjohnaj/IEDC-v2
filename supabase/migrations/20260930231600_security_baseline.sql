@@ -89,6 +89,345 @@ BEGIN
 END;
 $$;
 
+-- 2b. CORE BASE TABLES INITIALIZATION (IF NOT ALREADY CREATED)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name text NOT NULL DEFAULT '',
+  email text NOT NULL DEFAULT '',
+  phone text,
+  avatar_url text,
+  role text NOT NULL DEFAULT 'Student',
+  department text,
+  semester text,
+  college_id text,
+  bio text,
+  skills text[] DEFAULT '{}',
+  github text,
+  linkedin text,
+  discord_handle text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.kyc_verifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'pending',
+  doc_type text NOT NULL DEFAULT 'student_id',
+  doc_number text,
+  doc_number_last4 varchar(4),
+  doc_number_encrypted bytea,
+  doc_file_path text,
+  doc_file_name text,
+  full_name text,
+  dob date,
+  institution text,
+  submitted_at timestamptz DEFAULT now(),
+  verified_at timestamptz,
+  retention_delete_at timestamptz,
+  rejection_reason text,
+  admin_remarks text,
+  CONSTRAINT uq_kyc_user UNIQUE (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.ideabox_submissions (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  domain text NOT NULL,
+  elevator_pitch text,
+  problem_statement text,
+  proposed_solution text,
+  tech_stack text[] DEFAULT '{}',
+  stage text NOT NULL DEFAULT 'Ideation',
+  target_audience text,
+  estimated_budget text,
+  author_id text NOT NULL,
+  author_name text NOT NULL,
+  author_email text NOT NULL,
+  author_avatar text,
+  author_role text,
+  author_department text,
+  upvotes integer DEFAULT 0,
+  upvoters text[] DEFAULT '{}',
+  comments_count integer DEFAULT 0,
+  status text NOT NULL DEFAULT 'Pending',
+  admin_rating integer,
+  admin_feedback text,
+  admin_reviewed_by text,
+  admin_reviewed_at timestamptz,
+  incubator_track_assigned text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.ideabox_comments (
+  id text PRIMARY KEY,
+  idea_id text NOT NULL REFERENCES public.ideabox_submissions(id) ON DELETE CASCADE,
+  author_id text NOT NULL,
+  author_name text NOT NULL,
+  author_avatar text,
+  author_role text,
+  text text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.hackathon_events (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  subtitle text,
+  banner_image text,
+  category text,
+  start_date timestamptz NOT NULL,
+  end_date timestamptz NOT NULL,
+  status text NOT NULL DEFAULT 'Upcoming',
+  location text,
+  tracks text[] DEFAULT '{}',
+  prize_pool text,
+  max_team_size integer DEFAULT 4,
+  description text,
+  rules text[] DEFAULT '{}',
+  results_published boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.hackathon_teams (
+  id text PRIMARY KEY,
+  hackathon_id text NOT NULL REFERENCES public.hackathon_events(id) ON DELETE CASCADE,
+  hackathon_title text NOT NULL,
+  name text NOT NULL,
+  tagline text,
+  track text NOT NULL,
+  max_members integer DEFAULT 4,
+  is_open boolean DEFAULT true,
+  roles_needed text[] DEFAULT '{}',
+  members jsonb DEFAULT '[]'::jsonb,
+  discord_invite_url text,
+  whatsapp_group_url text,
+  github_org_url text,
+  invite_code text,
+  project_submission jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.team_chat_messages (
+  id text PRIMARY KEY,
+  team_id text NOT NULL REFERENCES public.hackathon_teams(id) ON DELETE CASCADE,
+  sender_id text NOT NULL,
+  sender_name text NOT NULL,
+  sender_avatar text,
+  sender_role text,
+  text text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.forum_discussions (
+  id text PRIMARY KEY DEFAULT ('disc_' || gen_random_uuid()),
+  title text NOT NULL,
+  channel text NOT NULL,
+  excerpt text NOT NULL,
+  author_name text NOT NULL,
+  author_role text NOT NULL,
+  author_avatar text,
+  roles_needed text[] DEFAULT '{}',
+  upvotes integer DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.forum_comments (
+  id text PRIMARY KEY DEFAULT ('fcom_' || gen_random_uuid()),
+  discussion_id text NOT NULL REFERENCES public.forum_discussions(id) ON DELETE CASCADE,
+  author text NOT NULL,
+  avatar text,
+  text text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.events (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  category text NOT NULL,
+  date text NOT NULL,
+  status text NOT NULL DEFAULT 'Upcoming',
+  asset_image text,
+  fallback_image text,
+  description text,
+  details text,
+  location text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.registrations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  type text NOT NULL,
+  event_name text,
+  full_name text NOT NULL,
+  email text NOT NULL,
+  phone text,
+  department text,
+  semester text,
+  overview_reason text,
+  status text NOT NULL DEFAULT 'Pending',
+  confirmation_token text,
+  created_at timestamptz DEFAULT now()
+);
+
+-- 2c. ENSURE ALL COLUMNS EXIST IF TABLES WERE PRE-EXISTING
+ALTER TABLE IF EXISTS public.profiles 
+  ADD COLUMN IF NOT EXISTS phone text,
+  ADD COLUMN IF NOT EXISTS avatar_url text,
+  ADD COLUMN IF NOT EXISTS role text DEFAULT 'Student',
+  ADD COLUMN IF NOT EXISTS department text,
+  ADD COLUMN IF NOT EXISTS semester text,
+  ADD COLUMN IF NOT EXISTS college_id text,
+  ADD COLUMN IF NOT EXISTS bio text,
+  ADD COLUMN IF NOT EXISTS skills text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS github text,
+  ADD COLUMN IF NOT EXISTS linkedin text,
+  ADD COLUMN IF NOT EXISTS discord_handle text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.kyc_verifications
+  ADD COLUMN IF NOT EXISTS user_id uuid,
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS doc_type text DEFAULT 'student_id',
+  ADD COLUMN IF NOT EXISTS doc_number text,
+  ADD COLUMN IF NOT EXISTS doc_number_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS doc_number_encrypted bytea,
+  ADD COLUMN IF NOT EXISTS doc_file_path text,
+  ADD COLUMN IF NOT EXISTS doc_file_name text,
+  ADD COLUMN IF NOT EXISTS full_name text,
+  ADD COLUMN IF NOT EXISTS dob date,
+  ADD COLUMN IF NOT EXISTS institution text,
+  ADD COLUMN IF NOT EXISTS submitted_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS verified_at timestamptz,
+  ADD COLUMN IF NOT EXISTS retention_delete_at timestamptz,
+  ADD COLUMN IF NOT EXISTS rejection_reason text,
+  ADD COLUMN IF NOT EXISTS admin_remarks text;
+
+ALTER TABLE IF EXISTS public.ideabox_submissions
+  ADD COLUMN IF NOT EXISTS title text,
+  ADD COLUMN IF NOT EXISTS domain text,
+  ADD COLUMN IF NOT EXISTS elevator_pitch text,
+  ADD COLUMN IF NOT EXISTS problem_statement text,
+  ADD COLUMN IF NOT EXISTS proposed_solution text,
+  ADD COLUMN IF NOT EXISTS tech_stack text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS stage text DEFAULT 'Ideation',
+  ADD COLUMN IF NOT EXISTS target_audience text,
+  ADD COLUMN IF NOT EXISTS estimated_budget text,
+  ADD COLUMN IF NOT EXISTS author_id text,
+  ADD COLUMN IF NOT EXISTS author_name text,
+  ADD COLUMN IF NOT EXISTS author_email text,
+  ADD COLUMN IF NOT EXISTS author_avatar text,
+  ADD COLUMN IF NOT EXISTS author_role text,
+  ADD COLUMN IF NOT EXISTS author_department text,
+  ADD COLUMN IF NOT EXISTS upvotes integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS upvoters text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS comments_count integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'Pending',
+  ADD COLUMN IF NOT EXISTS admin_rating integer,
+  ADD COLUMN IF NOT EXISTS admin_feedback text,
+  ADD COLUMN IF NOT EXISTS admin_reviewed_by text,
+  ADD COLUMN IF NOT EXISTS admin_reviewed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS incubator_track_assigned text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.ideabox_comments
+  ADD COLUMN IF NOT EXISTS idea_id text,
+  ADD COLUMN IF NOT EXISTS author_id text,
+  ADD COLUMN IF NOT EXISTS author_name text,
+  ADD COLUMN IF NOT EXISTS author_avatar text,
+  ADD COLUMN IF NOT EXISTS author_role text,
+  ADD COLUMN IF NOT EXISTS text text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.hackathon_events
+  ADD COLUMN IF NOT EXISTS title text,
+  ADD COLUMN IF NOT EXISTS subtitle text,
+  ADD COLUMN IF NOT EXISTS banner_image text,
+  ADD COLUMN IF NOT EXISTS category text,
+  ADD COLUMN IF NOT EXISTS start_date timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS end_date timestamptz DEFAULT now() + interval '3 days',
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'Upcoming',
+  ADD COLUMN IF NOT EXISTS location text,
+  ADD COLUMN IF NOT EXISTS tracks text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS prize_pool text,
+  ADD COLUMN IF NOT EXISTS max_team_size integer DEFAULT 4,
+  ADD COLUMN IF NOT EXISTS description text,
+  ADD COLUMN IF NOT EXISTS rules text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS results_published boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.hackathon_teams
+  ADD COLUMN IF NOT EXISTS hackathon_id text,
+  ADD COLUMN IF NOT EXISTS hackathon_title text,
+  ADD COLUMN IF NOT EXISTS name text,
+  ADD COLUMN IF NOT EXISTS tagline text,
+  ADD COLUMN IF NOT EXISTS track text DEFAULT 'General',
+  ADD COLUMN IF NOT EXISTS max_members integer DEFAULT 4,
+  ADD COLUMN IF NOT EXISTS is_open boolean DEFAULT true,
+  ADD COLUMN IF NOT EXISTS roles_needed text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS members jsonb DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS discord_invite_url text,
+  ADD COLUMN IF NOT EXISTS whatsapp_group_url text,
+  ADD COLUMN IF NOT EXISTS github_org_url text,
+  ADD COLUMN IF NOT EXISTS invite_code text,
+  ADD COLUMN IF NOT EXISTS project_submission jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.team_chat_messages
+  ADD COLUMN IF NOT EXISTS team_id text,
+  ADD COLUMN IF NOT EXISTS sender_id text,
+  ADD COLUMN IF NOT EXISTS sender_name text,
+  ADD COLUMN IF NOT EXISTS sender_avatar text,
+  ADD COLUMN IF NOT EXISTS sender_role text,
+  ADD COLUMN IF NOT EXISTS text text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.forum_discussions
+  ADD COLUMN IF NOT EXISTS title text,
+  ADD COLUMN IF NOT EXISTS channel text DEFAULT 'General',
+  ADD COLUMN IF NOT EXISTS excerpt text,
+  ADD COLUMN IF NOT EXISTS author_name text,
+  ADD COLUMN IF NOT EXISTS author_role text,
+  ADD COLUMN IF NOT EXISTS author_avatar text,
+  ADD COLUMN IF NOT EXISTS roles_needed text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS upvotes integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.forum_comments
+  ADD COLUMN IF NOT EXISTS discussion_id text,
+  ADD COLUMN IF NOT EXISTS author text,
+  ADD COLUMN IF NOT EXISTS avatar text,
+  ADD COLUMN IF NOT EXISTS text text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.events
+  ADD COLUMN IF NOT EXISTS title text,
+  ADD COLUMN IF NOT EXISTS category text,
+  ADD COLUMN IF NOT EXISTS date text,
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'Upcoming',
+  ADD COLUMN IF NOT EXISTS asset_image text,
+  ADD COLUMN IF NOT EXISTS fallback_image text,
+  ADD COLUMN IF NOT EXISTS description text,
+  ADD COLUMN IF NOT EXISTS details text,
+  ADD COLUMN IF NOT EXISTS location text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE IF EXISTS public.registrations
+  ADD COLUMN IF NOT EXISTS type text DEFAULT 'Event',
+  ADD COLUMN IF NOT EXISTS event_name text,
+  ADD COLUMN IF NOT EXISTS full_name text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS email text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phone text,
+  ADD COLUMN IF NOT EXISTS department text,
+  ADD COLUMN IF NOT EXISTS semester text,
+  ADD COLUMN IF NOT EXISTS overview_reason text,
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'Pending',
+  ADD COLUMN IF NOT EXISTS confirmation_token text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
 -- 3. ENABLE RLS ON ALL 11 TABLES
 ALTER TABLE IF EXISTS public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.kyc_verifications ENABLE ROW LEVEL SECURITY;
@@ -126,6 +465,22 @@ CREATE POLICY "profiles_update_owner_or_admin"
   WITH CHECK (id = auth.uid() OR public.has_role('Admin'));
 
 -- 5. PUBLIC_PROFILES VIEW (Standard view owned by postgres)
+-- Ensure profiles table has all expected columns
+ALTER TABLE IF EXISTS public.profiles 
+  ADD COLUMN IF NOT EXISTS phone text,
+  ADD COLUMN IF NOT EXISTS avatar_url text,
+  ADD COLUMN IF NOT EXISTS role text DEFAULT 'Student',
+  ADD COLUMN IF NOT EXISTS department text,
+  ADD COLUMN IF NOT EXISTS semester text,
+  ADD COLUMN IF NOT EXISTS college_id text,
+  ADD COLUMN IF NOT EXISTS bio text,
+  ADD COLUMN IF NOT EXISTS skills text[],
+  ADD COLUMN IF NOT EXISTS github text,
+  ADD COLUMN IF NOT EXISTS linkedin text,
+  ADD COLUMN IF NOT EXISTS discord_handle text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
 CREATE OR REPLACE VIEW public.public_profiles AS
   SELECT 
     id, 

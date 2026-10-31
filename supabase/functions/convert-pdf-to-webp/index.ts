@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://esm.sh/zod@3.22.4";
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse } from "../_shared/rateLimiter.ts";
+import { captureEdgeException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,6 +160,13 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // Rate Limiting Enforcement (10 conversion requests per minute)
+  const clientId = getClientIdentifier(req);
+  const rateLimit = checkRateLimit(clientId, { limit: 10, windowSeconds: 60 });
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(rateLimit, corsHeaders);
+  }
+
   try {
     const rawBody = await req.json();
     const parseResult = ConvertPdfSchema.safeParse(rawBody);
@@ -263,6 +272,7 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err: any) {
     console.error("[convert-pdf-to-webp] Unexpected error:", err);
+    await captureEdgeException(err, "convert-pdf-to-webp", req);
     return new Response(
       JSON.stringify({
         error: "Failed to convert PDF pages to WebP",

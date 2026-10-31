@@ -22,7 +22,7 @@ const INITIAL_USERS: User[] = [
     github: 'https://github.com',
     linkedin: 'https://linkedin.com',
     startupIdeasCount: 2,
-    registeredEvents: ['evt_1', 'evt_2'],
+    registeredEvents: ['evt-ekah-26', 'evt-hackathon-2026', 'evt-founders-talk', 'evt-gaming-tournament'],
     bookmarkedEditions: ['issue-01', 'issue-03'],
     kyc: {
       status: 'verified',
@@ -55,7 +55,7 @@ const INITIAL_USERS: User[] = [
     github: 'https://github.com',
     linkedin: 'https://linkedin.com',
     startupIdeasCount: 1,
-    registeredEvents: ['evt_3'],
+    registeredEvents: ['evt-ekah-26', 'evt-movie-night', 'evt-panel-discussion'],
     bookmarkedEditions: ['issue-02'],
     kyc: {
       status: 'pending',
@@ -115,7 +115,7 @@ const INITIAL_USERS: User[] = [
     discordHandle: 'devika_iedc#1024',
     whatsappNumber: '+919745567890',
     startupIdeasCount: 3,
-    registeredEvents: ['evt-design-thinking', 'evt-idea-forge', 'evt-hackathon-2026'],
+    registeredEvents: ['evt-ekah-26', 'evt-hackathon-2026', 'evt-founders-talk', 'evt-design-thinking'],
     bookmarkedEditions: ['issue-01', 'issue-02', 'issue-03'],
     kyc: {
       status: 'verified',
@@ -150,7 +150,7 @@ const INITIAL_USERS: User[] = [
     discordHandle: 'arun_hacker#4421',
     whatsappNumber: '+919567812345',
     startupIdeasCount: 1,
-    registeredEvents: ['evt-hackathon-2026'],
+    registeredEvents: ['evt-hackathon-2026', 'evt-ekah-26'],
     bookmarkedEditions: ['issue-03'],
     kyc: {
       status: 'verified',
@@ -443,6 +443,7 @@ function mapSupabaseUser(
     department: (profile.department as string) || 'Computer Science & Engineering',
     semester: (profile.semester as string) || 'Semester 4',
     collegeId: (profile.college_id as string) || '',
+    institution: (profile.institution as string) || (kycRecord?.institution as string) || 'Baselios Mathews II College of Engineering',
     bio: (profile.bio as string) || '',
     skills: (profile.skills as string[]) || ['Innovation'],
     github: (profile.github as string) || '',
@@ -577,14 +578,22 @@ export const authService = {
     fullName: string;
     email: string;
     phone: string;
-    department: string;
-    semester: string;
-    collegeId: string;
+    department?: string;
+    semester?: string;
+    collegeId?: string;
+    institution?: string;
+    designation?: string;
+    organization?: string;
     password?: string;
-    role?: 'Student' | 'Innovator';
+    role?: UserRole;
   }): Promise<{ success: boolean; user?: User; error?: string }> {
     const cleanEmail = data.email.trim().toLowerCase();
     const sb = getSupabase();
+    const resolvedRole: UserRole = data.role || 'Student';
+    const resolvedInstitution = data.institution?.trim() || 'Baselios Mathews II College of Engineering';
+    const resolvedDept = data.department?.trim() || (resolvedRole === 'Faculty' ? 'Faculty' : 'General');
+    const resolvedSem = data.semester?.trim() || (resolvedRole === 'Faculty' ? 'Faculty' : 'N/A');
+    const resolvedCollegeId = data.collegeId ? data.collegeId.trim().toUpperCase() : '';
 
     if (sb && data.password) {
       try {
@@ -595,10 +604,11 @@ export const authService = {
             data: {
               full_name: data.fullName.trim(),
               phone: data.phone.trim(),
-              department: data.department,
-              semester: data.semester,
-              college_id: data.collegeId.trim().toUpperCase(),
-              role: data.role || 'Student'
+              department: resolvedDept,
+              semester: resolvedSem,
+              college_id: resolvedCollegeId,
+              institution: resolvedInstitution,
+              role: resolvedRole
             }
           }
         });
@@ -619,10 +629,10 @@ export const authService = {
                 full_name: data.fullName.trim(),
                 email: cleanEmail,
                 phone: data.phone.trim(),
-                department: data.department,
-                semester: data.semester,
-                college_id: data.collegeId.trim().toUpperCase(),
-                role: data.role || 'Student',
+                department: resolvedDept,
+                semester: resolvedSem,
+                college_id: resolvedCollegeId,
+                role: resolvedRole,
                 avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.fullName)}`
               }])
               .select()
@@ -658,27 +668,46 @@ export const authService = {
       };
     }
 
+    let docType: KYCDocumentType = 'student_id';
+    if (resolvedRole === 'Faculty') {
+      docType = 'aadhaar';
+    } else if (resolvedRole === 'ExternalParticipant') {
+      docType = 'college_admission';
+    } else if (resolvedRole === 'Innovator') {
+      docType = 'pan';
+    }
+
+    let defaultBio = `Student at Baselios Mathews II College of Engineering, ${resolvedDept}.`;
+    if (resolvedRole === 'Faculty') {
+      defaultBio = `Faculty member (${data.designation || 'Instructor'}) in ${resolvedDept} at Baselios Mathews II College of Engineering.`;
+    } else if (resolvedRole === 'ExternalParticipant') {
+      defaultBio = `External participant from ${resolvedInstitution}, ${resolvedDept}.`;
+    } else if (resolvedRole === 'Innovator') {
+      defaultBio = `Innovator & mentor affiliated with ${data.organization || 'Independent Innovation Ecosystem'}.`;
+    }
+
     const newUser: User = {
       id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       fullName: data.fullName.trim(),
       email: cleanEmail,
       phone: data.phone.trim(),
       avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.fullName)}`,
-      role: data.role || 'Student',
-      department: data.department,
-      semester: data.semester,
-      collegeId: data.collegeId.trim().toUpperCase(),
-      bio: `Student at Baselios Mathews II College of Engineering, ${data.department}.`,
-      skills: ['Ideation', 'Problem Solving'],
+      role: resolvedRole,
+      department: resolvedDept,
+      semester: resolvedSem,
+      collegeId: resolvedCollegeId,
+      institution: resolvedInstitution,
+      bio: defaultBio,
+      skills: ['Innovation', 'Collaboration'],
       startupIdeasCount: 0,
       registeredEvents: [],
       bookmarkedEditions: [],
       kyc: {
         status: 'unverified',
-        docType: 'student_id',
+        docType: docType,
         docNumber: '',
         fullName: data.fullName.trim(),
-        institution: 'Baselios Mathews II College of Engineering'
+        institution: resolvedInstitution
       },
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString()

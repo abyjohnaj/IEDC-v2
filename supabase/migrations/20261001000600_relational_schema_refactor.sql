@@ -38,36 +38,57 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
--- Convert existing free-text columns to enums
+-- 1. Drop policy depending on status column before altering type
+DROP POLICY IF EXISTS "ideabox_select_published_or_author" ON public.ideabox_submissions;
+
+-- Convert existing free-text columns to enums safely by dropping text defaults first
+ALTER TABLE public.ideabox_submissions ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE public.ideabox_submissions 
   ALTER COLUMN status TYPE public.idea_status 
   USING (
     CASE 
-      WHEN status IN ('Pending', 'Under Review', 'Shortlisted', 'Incubation Approved', 'Mentorship Assigned', 'Needs Revision', 'Rejected') 
-        THEN status::public.idea_status 
+      WHEN status::text IN ('Pending', 'Under Review', 'Shortlisted', 'Incubation Approved', 'Mentorship Assigned', 'Needs Revision', 'Rejected') 
+        THEN status::text::public.idea_status 
       ELSE 'Pending'::public.idea_status 
     END
   );
+ALTER TABLE public.ideabox_submissions ALTER COLUMN status SET DEFAULT 'Pending'::public.idea_status;
 
+-- Re-create policy with typed enum status
+CREATE POLICY "ideabox_select_published_or_author"
+  ON public.ideabox_submissions
+  FOR SELECT
+  TO anon, authenticated
+  USING (
+    status IN ('Under Review'::public.idea_status, 'Shortlisted'::public.idea_status, 'Incubation Approved'::public.idea_status, 'Mentorship Assigned'::public.idea_status)
+    OR author_id = auth.uid()::text
+    OR public.has_role('Admin')
+    OR public.has_role('Execom')
+  );
+
+ALTER TABLE public.ideabox_submissions ALTER COLUMN stage DROP DEFAULT;
 ALTER TABLE public.ideabox_submissions 
   ALTER COLUMN stage TYPE public.stage 
   USING (
     CASE 
-      WHEN stage IN ('Ideation', 'Prototype', 'Validation', 'Incubation Ready', 'Funded') 
-        THEN stage::public.stage 
+      WHEN stage::text IN ('Ideation', 'Prototype', 'Validation', 'Incubation Ready', 'Funded') 
+        THEN stage::text::public.stage 
       ELSE 'Ideation'::public.stage 
     END
   );
+ALTER TABLE public.ideabox_submissions ALTER COLUMN stage SET DEFAULT 'Ideation'::public.stage;
 
+ALTER TABLE public.hackathon_events ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE public.hackathon_events 
   ALTER COLUMN status TYPE public.hackathon_status 
   USING (
     CASE 
-      WHEN status IN ('Upcoming', 'Live', 'Judging', 'Completed') 
-        THEN status::public.hackathon_status 
+      WHEN status::text IN ('Upcoming', 'Live', 'Judging', 'Completed') 
+        THEN status::text::public.hackathon_status 
       ELSE 'Upcoming'::public.hackathon_status 
     END
   );
+ALTER TABLE public.hackathon_events ALTER COLUMN status SET DEFAULT 'Upcoming'::public.hackathon_status;
 
 -- ==============================================================================
 -- 2. IDEA_VOTES TABLE, TRIGGER & BACKFILL
@@ -99,6 +120,34 @@ BEGIN
     ON CONFLICT (idea_id, user_id) DO NOTHING;
 
     ALTER TABLE public.ideabox_submissions DROP COLUMN upvoters;
+
+    -- Update trigger to no longer reference dropped upvoters column
+    CREATE OR REPLACE FUNCTION public.trg_check_ideabox_update_permissions()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public, auth, pg_temp
+    AS $trg$
+    DECLARE
+      is_evaluator boolean;
+    BEGIN
+      is_evaluator := public.has_role('Admin') OR public.has_role('Execom');
+
+      -- 1. Lock administrative review columns from non-evaluators
+      IF NOT is_evaluator THEN
+        IF NEW.status IS DISTINCT FROM OLD.status OR
+           NEW.admin_rating IS DISTINCT FROM OLD.admin_rating OR
+           NEW.admin_feedback IS DISTINCT FROM OLD.admin_feedback OR
+           NEW.admin_reviewed_by IS DISTINCT FROM OLD.admin_reviewed_by OR
+           NEW.admin_reviewed_at IS DISTINCT FROM OLD.admin_reviewed_at OR
+           NEW.incubator_track_assigned IS DISTINCT FROM OLD.incubator_track_assigned THEN
+          RAISE EXCEPTION 'Access Denied: Submission status and incubator evaluations can only be modified by IEDC Admins/Execom.';
+        END IF;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $trg$;
   END IF;
 END $$;
 
@@ -223,8 +272,31 @@ FROM public.profiles
 WHERE role IN ('Admin', 'Execom')
 ON CONFLICT (user_id, role, scope) DO NOTHING;
 
--- Rewrite has_role() using user_roles table
-CREATE OR REPLACE FUNCTION public.has_role(required_role text, required_scope text DEFAULT NULL)
+-- Drop 2-argument has_role overload if created with a default parameter to prevent ambiguous function call errors
+DROP FUNCTION IF EXISTS public.has_role(text, text);
+
+-- Rewrite 1-argument has_role(text) in-place using user_roles table
+CREATE OR REPLACE FUNCTION public.has_role(required_role text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN false;
+  END IF;
+
+  RETURN EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid() 
+      AND role = required_role
+  );
+END;
+$$;
+
+-- Provide 2-argument has_role(text, text) for scoped role checks without default parameter
+CREATE OR REPLACE FUNCTION public.has_role(required_role text, required_scope text)
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -908,7 +980,8 @@ CREATE INDEX IF NOT EXISTS idx_registrations_type ON public.registrations(type);
 
 -- forum_comments & forum_discussions
 CREATE INDEX IF NOT EXISTS idx_forum_comments_discussion_id ON public.forum_comments(discussion_id);
-CREATE INDEX IF NOT EXISTS idx_forum_discussions_category ON public.forum_discussions(category);
+ALTER TABLE IF EXISTS public.forum_discussions ADD COLUMN IF NOT EXISTS channel text DEFAULT 'General';
+CREATE INDEX IF NOT EXISTS idx_forum_discussions_channel ON public.forum_discussions(channel);
 
 -- events
 CREATE INDEX IF NOT EXISTS idx_events_category ON public.events(category);

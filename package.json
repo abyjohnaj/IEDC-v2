@@ -7,11 +7,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:rls": "npx tsx scripts/rls-matrix.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@rive-app/react-canvas": "^4.34.3",
+    "@sentry/react": "^11.2.0",
     "@supabase/supabase-js": "^2.49.1",
     "@tanstack/react-query": "^5.104.0",
     "lucide-react": "^0.475.0",

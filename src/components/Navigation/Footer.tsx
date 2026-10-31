@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MapPin, Instagram, Linkedin, MessageSquare, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Mail, MapPin, Instagram, Linkedin, MessageSquare, ShieldCheck } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -30,7 +30,7 @@ export const Footer: React.FC = () => {
               <li><a href="/#about">About IEDC</a></li>
               <li><a href="/#events">Upcoming Events</a></li>
               <li><a href="/#execom">Executive Committee</a></li>
-              <li><Link to="/newsletter">📰 Eureka 3D Library</Link></li>
+              <li><Link to="/newsletter">📚 IEDC BMCE Library</Link></li>
               <li><a href="/#forum">Community Forum</a></li>
               <li><a href="/#incubation">Incubation Hub</a></li>
               <li>
@@ -58,11 +58,6 @@ export const Footer: React.FC = () => {
               <li>
                 <a href="https://whatsapp.com/channel/0029Vb6yfNNI7BeJhuSzYL1y" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <MessageSquare size={14} /> WhatsApp Channel
-                </a>
-              </li>
-              <li>
-                <a href="https://online.fliphtml5.com/vaxbbp/iipw/" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <ExternalLink size={14} /> Eureka FlipHTML5
                 </a>
               </li>
             </ul>

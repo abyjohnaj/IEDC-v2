@@ -19,7 +19,7 @@ interface RocketState {
 export const PaperRocketsStage: React.FC = () => {
   const canvasRef = useRef<SVGSVGElement | null>(null);
   const rocketsRef = useRef<RocketState[]>([]);
-  const nextLaunchRef = useRef<number>(250);
+  const nextLaunchRef = useRef<number>(1500);
   const animRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -71,9 +71,9 @@ export const PaperRocketsStage: React.FC = () => {
       const flyingCount = rocketsRef.current.filter(r => !r.isOffScreen).length;
 
       nextLaunchRef.current -= delta;
-      if (nextLaunchRef.current <= 0 && flyingCount < 3) {
+      if (nextLaunchRef.current <= 0 && flyingCount < 1) {
         spawnRocket();
-        nextLaunchRef.current = 2600 + Math.random() * 2000;
+        nextLaunchRef.current = 8000 + Math.random() * 6000;
       }
 
       if (canvasRef.current) {
@@ -163,6 +163,7 @@ export const PaperRocketsStage: React.FC = () => {
                 <path
                   d="${contrailD}"
                   class="rocket-contrail"
+                  stroke="#000000"
                   style="opacity: ${Math.max(0, r.trailOpacity).toFixed(3)}; stroke-opacity: ${Math.max(0, r.trailOpacity).toFixed(3)};"
                 />
               ` : ''}

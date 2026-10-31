@@ -39,6 +39,16 @@ describe('Newsletter PDF-to-WebP & Lazy Flipbook System', () => {
     });
 
     it('generates high-fidelity WebP page vector representations if edition lacks remote pages', async () => {
+      vi.spyOn(supabaseClientModule, 'getSupabase').mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: new Error('Not found') })
+            })
+          })
+        })
+      } as any);
+
       const editionWithoutWebp: NewsletterEdition = {
         id: 'test-edition-generate',
         title: 'Quantum Leap',

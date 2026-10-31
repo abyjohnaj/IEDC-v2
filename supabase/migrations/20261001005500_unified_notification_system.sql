@@ -16,14 +16,42 @@
 CREATE TABLE IF NOT EXISTS public.notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  type text NOT NULL,
-  title text NOT NULL,
-  body text NOT NULL,
+  type text NOT NULL DEFAULT 'general',
+  title text NOT NULL DEFAULT '',
+  body text NOT NULL DEFAULT '',
   link text,
   read_at timestamptz,
   metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Ensure all columns exist if table was previously created with earlier schema
+ALTER TABLE IF EXISTS public.notifications
+  ADD COLUMN IF NOT EXISTS type text DEFAULT 'general',
+  ADD COLUMN IF NOT EXISTS body text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS link text,
+  ADD COLUMN IF NOT EXISTS read_at timestamptz,
+  ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+
+-- Backfill body from message if legacy column exists
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'message'
+  ) THEN
+    UPDATE public.notifications SET body = COALESCE(message, '') WHERE body IS NULL OR body = '';
+  END IF;
+END $$;
+
+-- Backfill read_at from is_read if legacy column exists
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'is_read'
+  ) THEN
+    UPDATE public.notifications SET read_at = created_at WHERE is_read = true AND read_at IS NULL;
+  END IF;
+END $$;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread 

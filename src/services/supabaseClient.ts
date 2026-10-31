@@ -342,6 +342,7 @@ export async function updateRegistrationStatus(id: string, status: 'Pending' | '
 // ==========================================
 
 const EVENTS_STORAGE_KEY = 'iedc_events_store';
+const DELETED_EVENTS_STORAGE_KEY = 'iedc_deleted_events_v2';
 
 function dispatchEventsUpdated() {
   if (typeof window !== 'undefined') {
@@ -349,30 +350,78 @@ function dispatchEventsUpdated() {
   }
 }
 
+function getDeletedEventIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_EVENTS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set(parsed);
+    }
+  } catch (e) {
+    console.warn('Error reading deleted event IDs:', e);
+  }
+  return new Set();
+}
+
+function saveDeletedEventIds(ids: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(DELETED_EVENTS_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch (e) {
+    console.warn('Error saving deleted event IDs:', e);
+  }
+}
+
 export function getLocalEvents(): EventItem[] {
   if (typeof window === 'undefined') return initialEventsData;
+  const deletedIds = getDeletedEventIds();
+
+  let cachedEvents: EventItem[] = [];
   try {
     const cached = localStorage.getItem(EVENTS_STORAGE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        cachedEvents = parsed;
       }
     }
   } catch (err) {
     console.warn('Error reading local events:', err);
   }
 
-  try {
-    localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(initialEventsData));
-  } catch (err) {
-    console.warn('Error seeding local events:', err);
+  // Smart baseline synchronization:
+  // 1. Start with initial baseline events (excluding deleted ones)
+  const eventMap = new Map<string, EventItem>();
+  for (const base of initialEventsData) {
+    if (!deletedIds.has(base.id)) {
+      eventMap.set(base.id, base);
+    }
   }
-  return initialEventsData;
+
+  // 2. Overlay cached events (preserves edits and newly created custom events)
+  for (const item of cachedEvents) {
+    if (!deletedIds.has(item.id)) {
+      eventMap.set(item.id, item);
+    }
+  }
+
+  const result = Array.from(eventMap.values());
+
+  try {
+    localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(result));
+    localStorage.setItem('iedc_custom_events', JSON.stringify(result));
+  } catch (err) {
+    console.warn('Error caching local events:', err);
+  }
+
+  return result;
 }
 
 export async function fetchEvents(): Promise<EventItem[]> {
   const sb = getSupabase();
+  const deletedIds = getDeletedEventIds();
+
   if (sb) {
     try {
       const { data, error } = await sb
@@ -381,27 +430,42 @@ export async function fetchEvents(): Promise<EventItem[]> {
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        const mapped: EventItem[] = data.map((d: any) => ({
-          id: d.id,
-          title: d.title,
-          category: d.category || 'Workshops',
-          date: d.date || 'Upcoming 2026',
-          status: d.status || 'Upcoming',
-          assetImage: d.asset_image || d.assetImage || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
-          fallbackImage: d.fallback_image || d.fallbackImage || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
-          description: d.description || '',
-          details: d.details || d.description || '',
-          location: d.location || 'IEDC Hub, BMCE'
-        }));
+        const initialMap = new Map(initialEventsData.map(e => [e.id, e]));
+
+        const mapped: EventItem[] = data
+          .filter((d: any) => !deletedIds.has(d.id))
+          .map((d: any) => {
+            const initial = initialMap.get(d.id);
+            return {
+              id: d.id,
+              title: d.title,
+              category: d.category || initial?.category || 'Workshops',
+              date: d.date || initial?.date || 'Upcoming 2026',
+              time: d.time || initial?.time,
+              status: d.status || initial?.status || 'Upcoming',
+              assetImage: d.asset_image || d.assetImage || initial?.assetImage || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
+              fallbackImage: d.fallback_image || d.fallbackImage || initial?.fallbackImage || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
+              description: d.description || initial?.description || '',
+              details: d.details || d.description || initial?.details || '',
+              location: d.location || initial?.location || 'IEDC Hub, BMCE',
+              isHackathon: d.is_hackathon ?? initial?.isHackathon,
+              isMegaFest: d.is_mega_fest ?? initial?.isMegaFest,
+              festPortalSlug: d.fest_portal_slug || d.festPortalSlug || initial?.festPortalSlug,
+              subEvents: d.sub_events || initial?.subEvents,
+              entryFee: d.entry_fee || d.entryFee || initial?.entryFee
+            };
+          });
 
         // Merge any local events that might not yet be in remote database
         const local = getLocalEvents();
         const sbIds = new Set(mapped.map(m => m.id));
-        const localOnly = local.filter(l => !sbIds.has(l.id));
+        const localOnly = local.filter(l => !sbIds.has(l.id) && !deletedIds.has(l.id));
         const combined = [...localOnly, ...mapped];
 
-        localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(combined));
-        try { localStorage.setItem('iedc_custom_events', JSON.stringify(combined)); } catch (e) {}
+        try {
+          localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(combined));
+          localStorage.setItem('iedc_custom_events', JSON.stringify(combined));
+        } catch (e) {}
         return combined;
       } else if (!error && data && data.length === 0) {
         // Table is fresh and empty! Seed default catalog into Supabase
@@ -439,6 +503,13 @@ export async function createEvent(eventData: Omit<EventItem, 'id'>): Promise<Eve
     ...eventData,
     id: `evt-${Date.now()}`
   };
+
+  // If this ID was previously marked deleted, unmark it
+  const deletedIds = getDeletedEventIds();
+  if (deletedIds.has(newEvent.id)) {
+    deletedIds.delete(newEvent.id);
+    saveDeletedEventIds(deletedIds);
+  }
 
   // 1. Immediately store locally to prevent any latency / race conditions
   const current = getLocalEvents();
@@ -481,6 +552,13 @@ export async function createEvent(eventData: Omit<EventItem, 'id'>): Promise<Eve
 }
 
 export async function updateEvent(updatedEvent: EventItem): Promise<boolean> {
+  // If this ID was previously marked deleted, unmark it
+  const deletedIds = getDeletedEventIds();
+  if (deletedIds.has(updatedEvent.id)) {
+    deletedIds.delete(updatedEvent.id);
+    saveDeletedEventIds(deletedIds);
+  }
+
   const current = getLocalEvents();
   const updated = current.map(e => e.id === updatedEvent.id ? updatedEvent : e);
   try {
@@ -517,6 +595,12 @@ export async function updateEvent(updatedEvent: EventItem): Promise<boolean> {
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {
+  // 1. Mark as deleted so it never resurrects
+  const deletedIds = getDeletedEventIds();
+  deletedIds.add(id);
+  saveDeletedEventIds(deletedIds);
+
+  // 2. Remove locally
   const current = getLocalEvents();
   const updated = current.filter(e => e.id !== id);
   try {
@@ -526,6 +610,7 @@ export async function deleteEvent(id: string): Promise<boolean> {
     console.error('Failed to delete event from localStorage:', err);
   }
 
+  // 3. Attempt Supabase delete
   const sb = getSupabase();
   if (sb) {
     try {
@@ -537,6 +622,20 @@ export async function deleteEvent(id: string): Promise<boolean> {
 
   dispatchEventsUpdated();
   return true;
+}
+
+export function resetEventsToDefault(): EventItem[] {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(DELETED_EVENTS_STORAGE_KEY);
+      localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(initialEventsData));
+      localStorage.setItem('iedc_custom_events', JSON.stringify(initialEventsData));
+    } catch (e) {
+      console.warn('Error resetting events to default:', e);
+    }
+  }
+  dispatchEventsUpdated();
+  return initialEventsData;
 }
 
 // ==========================================

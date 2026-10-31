@@ -1,14 +1,38 @@
+export interface FestSubEvent {
+  id: string;
+  title: string;
+  category: 'Hackathon' | 'Ideathon' | 'Gaming' | 'ProShow' | 'TalkSession' | 'PanelDiscussion' | 'Workshop' | 'MovieShow' | string;
+  date: string;
+  time?: string;
+  venue: string;
+  prizePool?: string;
+  teamSize?: string;
+  isHackathon?: boolean;
+  coordinator?: { name: string; phone: string };
+  description: string;
+  icon?: string;
+  registrationStatus?: 'open' | 'fast_filling' | 'closed';
+}
+
 export interface EventItem {
   id: string;
   title: string;
-  category: 'Workshops' | 'Bootcamps' | 'Fests' | 'Orientation' | string;
+  category: 'Workshops' | 'Bootcamps' | 'Fests' | 'Hackathons' | 'Talks' | 'Gaming' | 'Movies' | 'Orientation' | string;
   date: string;
+  time?: string;
   status: 'Upcoming' | 'Featured' | 'Completed' | string;
   assetImage: string;
   fallbackImage: string;
   description: string;
   details: string;
   location: string;
+  isHackathon?: boolean;
+  isMegaFest?: boolean;
+  festPortalSlug?: string;
+  subEvents?: FestSubEvent[];
+  speakers?: string[];
+  entryFee?: string;
+  passCode?: string;
 }
 
 export interface ExecomMember {
@@ -73,6 +97,16 @@ export interface NewsletterPageContent {
   author?: string;
 }
 
+export interface NewsletterShelf {
+  id: string;
+  name: string;
+  tag?: string;
+  description?: string;
+  order?: number;
+  isCustom?: boolean;
+  createdAt?: string;
+}
+
 export interface NewsletterEdition {
   id: string;
   issue?: number | string;
@@ -83,8 +117,10 @@ export interface NewsletterEdition {
   month: string;
   year: string;
   category?: string;
-  tier?: number; // 1 to 4
-  angleIndex?: number; // 0 to 5
+  shelfId?: string;
+  shelfName?: string;
+  tier?: number;
+  angleIndex?: number;
   readTime?: string;
   author?: string;
   theme: string;
@@ -104,7 +140,11 @@ export interface NewsletterEdition {
   totalPages?: number;
   conversionStatus?: 'pending' | 'processing' | 'completed' | 'failed';
   pages: NewsletterPageContent[];
+  uploadedAt?: string;
+  isCustom?: boolean;
 }
+
+
 
 export type KYCStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 export type KYCDocumentType = 'student_id' | 'aadhaar' | 'college_admission' | 'pan';
@@ -135,7 +175,7 @@ export interface KYCDetails {
   adminRemarks?: string;
 }
 
-export type UserRole = 'Student' | 'Innovator' | 'Faculty' | 'Alumni' | 'Execom' | 'ExternalParticipant' | 'Admin';
+export type UserRole = 'Student' | 'Innovator' | 'Faculty' | 'Alumni' | 'Execom' | 'ExternalParticipant' | 'Admin' | 'Judge' | 'Reviewer';
 
 export interface User {
   id: string;
@@ -226,8 +266,103 @@ export interface IdeaBoxSubmission {
   adminReviewedBy?: string;
   adminReviewedAt?: string;
   incubatorTrackAssigned?: string;
+  problemId?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+// ==========================================
+// Problem Bank & Campus Challenge Discovery
+// ==========================================
+export type ProblemSeverity = 'Critical' | 'High' | 'Moderate' | 'Low';
+export type ProblemDifficulty = 'Beginner' | 'Medium' | 'Advanced';
+export type ProblemStatus = 'Active' | 'In Progress' | 'Solved' | 'Archived';
+
+export interface ProblemStatement {
+  id: string;
+  title: string;
+  description: string;
+  domain: string;
+  severity: ProblemSeverity;
+  difficulty: ProblemDifficulty;
+  beneficiary: string;
+  tags: string[];
+  postedBy?: string;
+  authorName: string;
+  authorRole: string;
+  adoptedCount: number;
+  status: ProblemStatus;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ==========================================
+// Mentor Clinics & Scheduled Office Hours
+// ==========================================
+export type ClinicType = 
+  | 'Pitch Review' 
+  | 'Technical Architecture' 
+  | 'Patent & IP' 
+  | 'Incubation & Grants' 
+  | 'General Mentorship';
+
+export interface MentorClinicSlot {
+  id: string;
+  mentorId: string;
+  mentorName?: string;
+  mentorAvatar?: string;
+  mentorDesignation?: string;
+  mentorExpertise?: string[];
+  title: string;
+  clinicType: ClinicType;
+  startTime: string;
+  endTime: string;
+  location: string;
+  meetingLink?: string;
+  maxAttendees: number;
+  isBooked: boolean;
+  createdAt: string;
+}
+
+export interface MentorClinicBooking {
+  id: string;
+  slotId: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  ideaId?: string;
+  ideaTitle?: string;
+  slot?: MentorClinicSlot;
+  agenda: string;
+  status: 'confirmed' | 'attended' | 'cancelled';
+  mentorNotes?: string;
+  actionItems: string[];
+  createdAt: string;
+}
+
+// ==========================================
+// Project Journey Tracker
+// ==========================================
+export type JourneyStageId = 
+  | 'problem_discovery'
+  | 'team_formation'
+  | 'idea_pitch'
+  | 'validation'
+  | 'prototype_milestones'
+  | 'mentor_clinic'
+  | 'hackathon_defense'
+  | 'incubation_grant';
+
+export interface JourneyStageInfo {
+  id: JourneyStageId;
+  stageNumber: number;
+  title: string;
+  subtitle: string;
+  description: string;
+  evidenceRequired: string;
+  status: 'locked' | 'current' | 'completed';
+  actionLabel: string;
+  actionRoute: string;
 }
 
 export interface ReviewCriterion {

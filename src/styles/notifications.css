@@ -53,15 +53,15 @@
 /* Navbar Notification Dropdown */
 .notif-dropdown {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 8px);
   right: 0;
   width: 380px;
   max-width: 90vw;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), 0 0 15px rgba(2, 132, 199, 0.1);
+  backdrop-filter: blur(20px);
   z-index: 1000;
   overflow: hidden;
   animation: slideDownFade 0.2s ease-out;

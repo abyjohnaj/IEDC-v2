@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Moon, Sun, Menu, X, BookOpen, User as UserIcon, ShieldCheck, Clock,
-  AlertCircle, LogOut, Lightbulb, Settings, Flame, Bell, CheckCheck
+  AlertCircle, LogOut, Lightbulb, Settings, Flame, Bell, CheckCheck,
+  ChevronDown, Home, Target, Users, MessageSquare, Calendar
 } from 'lucide-react';
 import { authService, openAuthModal } from '../../services/authService';
 import { User } from '../../types';
@@ -42,7 +43,7 @@ export const Navbar: React.FC = () => {
     document.documentElement.setAttribute('data-theme', savedTheme);
 
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
+      setIsScrolled(window.scrollY > 30);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -70,6 +71,13 @@ export const Navbar: React.FC = () => {
     };
   }, []);
 
+  // Close mobile drawer on route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
+    setNotifDropdownOpen(false);
+  }, [location.pathname]);
+
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
@@ -83,52 +91,76 @@ export const Navbar: React.FC = () => {
     navigate('/');
   };
 
-  const isHome = location.pathname === '/';
   const kycStatus = user?.kyc?.status || 'unverified';
 
   return (
-    <header className={`navbar ${isScrolled ? 'scrolled' : (isHome ? 'navbar-on-notebook' : '')}`}>
-      <div className="container nav-container">
+    <header className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
+      <div className="nav-container">
         {/* Brand */}
-        <Link to="/" className="logo-brand">
+        <Link to="/" className="logo-brand" aria-label="IEDC BMCE Home">
           <img src="/assets/iedc_brand_logo.png" alt="IEDC BMCE Logo" className="logo-img" />
-          <div>
+          <div className="brand-text">
             <span className="brand-name">
-              IEDC <span style={{ color: 'var(--accent-cyan)' }}>BMCE</span>
+              IEDC <span className="brand-highlight">BMCE</span>
             </span>
             <span className="brand-sub">Innovation Hub</span>
           </div>
         </Link>
 
-        {/* Desktop Links */}
+        {/* Desktop Links - Streamlined, Clean Typography */}
         <ul className="nav-links">
-          <li><Link to="/" className={location.pathname === '/' ? 'active' : ''}>Home</Link></li>
-          <li><Link to="/ideabox" className={location.pathname === '/ideabox' ? 'active' : ''}>💡 IdeaBox</Link></li>
-          <li><Link to="/hackathons" className={location.pathname === '/hackathons' ? 'active' : ''}>🔥 Hackathon & Squads</Link></li>
-          <li><Link to="/newsletter" className={location.pathname === '/newsletter' ? 'active' : ''}>📰 Eureka Library</Link></li>
-          <li><Link to="/forum" className={location.pathname === '/forum' ? 'active' : ''}>💬 Forum</Link></li>
+          <li>
+            <Link to="/" className={location.pathname === '/' ? 'active' : ''}>
+              Home
+            </Link>
+          </li>
+          <li>
+            <Link to="/problems" className={location.pathname === '/problems' ? 'active' : ''}>
+              Problems
+            </Link>
+          </li>
+          <li>
+            <Link to="/ideabox" className={location.pathname === '/ideabox' ? 'active' : ''}>
+              IdeaBox
+            </Link>
+          </li>
+          <li>
+            <Link to="/hackathons" className={location.pathname === '/hackathons' ? 'active' : ''}>
+              Hackathons
+            </Link>
+          </li>
+          <li>
+            <Link to="/mentorship" className={location.pathname === '/mentorship' ? 'active' : ''}>
+              Mentorship
+            </Link>
+          </li>
+          <li>
+            <Link to="/newsletter" className={location.pathname === '/newsletter' ? 'active' : ''}>
+              Eureka
+            </Link>
+          </li>
+          <li>
+            <Link to="/forum" className={location.pathname === '/forum' ? 'active' : ''}>
+              Forum
+            </Link>
+          </li>
           {user?.role === 'Admin' || user?.role === 'Execom' ? (
-            <li><Link to="/admin" className={location.pathname === '/admin' ? 'active' : ''} style={{ color: 'var(--accent-cyan)' }}>🔒 Admin Suite</Link></li>
+            <li>
+              <Link to="/admin" className={`nav-link-admin ${location.pathname === '/admin' ? 'active' : ''}`}>
+                Admin
+              </Link>
+            </li>
           ) : (
-            <li><a href="/#events">Events</a></li>
+            <li>
+              <a href="/#events">Events</a>
+            </li>
           )}
         </ul>
 
-        {/* Right Actions */}
+        {/* Right Actions - Strictly Unified 38px Height */}
         <div className="nav-actions">
           {/* Global Search Box */}
           <NavbarSearch />
-
-          {/* Direct Link to Eureka 3D Library */}
-          <Link
-            to="/newsletter"
-            className="btn btn-secondary"
-            style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
-            title="Open 3D Eureka Library Shelf"
-          >
-            <BookOpen size={15} />
-            Eureka 3D Shelf
-          </Link>
 
           {/* Real-time Notifications Bell with Badge */}
           {user && (
@@ -138,9 +170,10 @@ export const Navbar: React.FC = () => {
                 className="nav-notif-btn"
                 onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
                 aria-label="Notifications"
+                aria-expanded={notifDropdownOpen}
                 title="Notifications"
               >
-                <Bell size={18} />
+                <Bell size={17} />
                 {unreadCount > 0 && (
                   <span className="nav-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
                 )}
@@ -207,7 +240,7 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
-          {/* User Auth Pill / Sign In Trigger */}
+          {/* User Auth Pill / Sign In Button */}
           {user ? (
             <div className="nav-user-dropdown" ref={dropdownRef}>
               <button
@@ -215,10 +248,12 @@ export const Navbar: React.FC = () => {
                 className="nav-user-pill"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 aria-label="User profile menu"
+                aria-expanded={userDropdownOpen}
               >
                 <img src={user.avatar} alt={user.fullName} className="nav-user-avatar" />
                 <span className="nav-user-name">{user.fullName.split(' ')[0]}</span>
                 <span className={`nav-user-kyc-dot ${kycStatus}`} title={`KYC: ${kycStatus}`} />
+                <ChevronDown size={13} className={`nav-user-chevron ${userDropdownOpen ? 'open' : ''}`} />
               </button>
 
               {userDropdownOpen && (
@@ -255,12 +290,12 @@ export const Navbar: React.FC = () => {
                   </Link>
 
                   <Link
-                    to="/profile?tab=squad"
+                    to="/profile?tab=events"
                     className="nav-user-menu-item"
                     onClick={() => setUserDropdownOpen(false)}
                   >
-                    <Flame size={15} style={{ color: '#ef4444' }} />
-                    <span>My Hackathon Squad</span>
+                    <Calendar size={15} />
+                    <span>My Events & Passes</span>
                   </Link>
 
                   <Link
@@ -316,12 +351,12 @@ export const Navbar: React.FC = () => {
           ) : (
             <button
               type="button"
-              className="btn btn-primary"
-              style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
+              className="btn-nav-auth"
               onClick={() => openAuthModal('login')}
+              aria-label="Sign In or Join"
             >
-              <UserIcon size={15} />
-              Sign In / Join
+              <UserIcon size={14} />
+              <span>Sign In</span>
             </button>
           )}
 
@@ -333,7 +368,7 @@ export const Navbar: React.FC = () => {
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             aria-label="Toggle Theme"
           >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
 
           {/* Mobile Menu Button */}
@@ -341,55 +376,92 @@ export const Navbar: React.FC = () => {
             className="mobile-menu-btn"
             onClick={() => setMobileMenuOpen(prev => !prev)}
             aria-label="Toggle Navigation Menu"
+            aria-expanded={mobileMenuOpen}
           >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
         <div className="mobile-nav-drawer">
           {user ? (
-            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{user.fullName}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user.email} • {user.role}</div>
-              <Link to="/profile" onClick={() => setMobileMenuOpen(false)} style={{ display: 'inline-block', marginTop: '0.5rem', color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '0.85rem' }}>
-                View Full Profile & KYC →
+            <div className="mobile-drawer-user-card">
+              <img src={user.avatar} alt={user.fullName} className="mobile-drawer-avatar" />
+              <div className="mobile-drawer-user-info">
+                <div className="mobile-drawer-user-name">{user.fullName}</div>
+                <div className="mobile-drawer-user-email">{user.email} • {user.role}</div>
+              </div>
+              <Link
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-drawer-profile-link"
+              >
+                Profile & KYC →
               </Link>
             </div>
           ) : (
-            <div style={{ padding: '0.5rem 1rem' }}>
+            <div style={{ padding: '0.25rem 0' }}>
               <button
                 type="button"
-                className="btn btn-primary"
-                style={{ width: '100%' }}
+                className="btn-nav-auth"
+                style={{ width: '100%', height: '42px' }}
                 onClick={() => {
                   setMobileMenuOpen(false);
                   openAuthModal('login');
                 }}
               >
-                Sign In / Join IEDC
+                <UserIcon size={16} />
+                <span>Sign In / Join IEDC</span>
               </button>
             </div>
           )}
 
-          <div style={{ padding: '0.5rem 1rem' }}>
+          <div style={{ margin: '0.25rem 0' }}>
             <NavbarSearch onSelectResult={() => setMobileMenuOpen(false)} />
           </div>
 
-          <Link to="/" onClick={() => setMobileMenuOpen(false)}>🏠 Home</Link>
-          <Link to="/ideabox" onClick={() => setMobileMenuOpen(false)}>💡 IdeaBox Portal</Link>
-          <Link to="/hackathons" onClick={() => setMobileMenuOpen(false)}>🔥 Hackathon & Teams</Link>
-          <Link to="/newsletter" onClick={() => setMobileMenuOpen(false)}>📰 Eureka 3D Library</Link>
-          <Link to="/forum" onClick={() => setMobileMenuOpen(false)}>💬 Community Forum</Link>
-          <a href="/#events" onClick={() => setMobileMenuOpen(false)}>📅 Events & Workshops</a>
-          {user && <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>👤 Student Profile & KYC</Link>}
-          {(user?.role === 'Admin' || user?.role === 'Execom') && (
-            <Link to="/admin" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)' }}>🔒 Admin Control Center</Link>
-          )}
+          <div className="mobile-drawer-links">
+            <span className="mobile-drawer-section-title">Navigation</span>
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/' ? 'active' : ''}>
+              <Home size={18} /> Home
+            </Link>
+            <Link to="/problems" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/problems' ? 'active' : ''}>
+              <Target size={18} /> Problem Bank
+            </Link>
+            <Link to="/ideabox" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/ideabox' ? 'active' : ''}>
+              <Lightbulb size={18} /> IdeaBox Portal
+            </Link>
+            <Link to="/hackathons" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/hackathons' ? 'active' : ''}>
+              <Flame size={18} /> Hackathon & Squads
+            </Link>
+            <Link to="/mentorship" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/mentorship' ? 'active' : ''}>
+              <Users size={18} /> Mentor Clinics
+            </Link>
+            <Link to="/newsletter" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/newsletter' ? 'active' : ''}>
+              <BookOpen size={18} /> Eureka 3D Library
+            </Link>
+            <Link to="/forum" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/forum' ? 'active' : ''}>
+              <MessageSquare size={18} /> Community Forum
+            </Link>
+            <a href="/#events" onClick={() => setMobileMenuOpen(false)}>
+              <Calendar size={18} /> Events & Workshops
+            </a>
+            {user && (
+              <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className={location.pathname === '/profile' ? 'active' : ''}>
+                <UserIcon size={18} /> Student Profile & KYC
+              </Link>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Execom') && (
+              <Link to="/admin" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)' }} className={location.pathname === '/admin' ? 'active' : ''}>
+                <Settings size={18} /> Admin Control Center
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </header>
   );
 };
+

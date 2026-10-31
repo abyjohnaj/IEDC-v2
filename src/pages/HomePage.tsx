@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Navbar } from '../components/Navigation/Navbar';
 import { Hero } from '../components/Hero/Hero';
+import { ScrollBigRocketTransition } from '../components/Hero/ScrollBigRocketTransition';
 import { AboutSection } from '../sections/AboutSection';
 import { EventsSection } from '../sections/EventsSection';
 import { ExecomSection } from '../sections/ExecomSection';
@@ -9,10 +9,13 @@ import { ForumSection } from '../sections/ForumSection';
 import { IncubationSection } from '../sections/IncubationSection';
 import { Footer } from '../components/Navigation/Footer';
 import { RegistrationModal } from '../components/Modals/RegistrationModal';
+import { EventDetailsModal } from '../components/Modals/EventDetailsModal';
 import { Toast } from '../components/UI/Toast';
+import { EventItem } from '../types';
 
 export const HomePage: React.FC = () => {
   const [activeEventName, setActiveEventName] = useState<string | null>(null);
+  const [selectedEventForDetails, setSelectedEventForDetails] = useState<EventItem | null>(null);
   const [isRegModalOpen, setIsRegModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -33,17 +36,20 @@ export const HomePage: React.FC = () => {
         <div className="global-notebook-margin-line" />
       </div>
 
-      {/* Fixed Glassmorphic Navigation */}
-      <Navbar />
+      {/* Cinematic Big Paper Rocket Scroll Transition (Launches from bottom-left to top-right on scroll) */}
+      <ScrollBigRocketTransition />
 
-      {/* Hero Section with Ground-Up Articulated Character Short Film & Paper Rockets */}
+      {/* Hero Section with Innovation Logbook & Periodic Paper Rockets */}
       <Hero />
 
       {/* About & 4 Core Pillars */}
       <AboutSection />
 
-      {/* Events & Bootcamps Grid with Registration Pass */}
-      <EventsSection onOpenRegistration={handleOpenRegistration} />
+      {/* Events & Bootcamps Grid with Registration Pass & Event Details */}
+      <EventsSection
+        onOpenRegistration={handleOpenRegistration}
+        onOpenDetails={setSelectedEventForDetails}
+      />
 
       {/* Executive Committee & Leadership */}
       <ExecomSection />
@@ -59,6 +65,17 @@ export const HomePage: React.FC = () => {
 
       {/* Footer */}
       <Footer />
+
+      {/* Event Details Overview Modal */}
+      <EventDetailsModal
+        isOpen={selectedEventForDetails !== null}
+        event={selectedEventForDetails}
+        onClose={() => setSelectedEventForDetails(null)}
+        onRegisterClick={(eventName) => {
+          setSelectedEventForDetails(null);
+          handleOpenRegistration(eventName);
+        }}
+      />
 
       {/* Global Registration & Startup Idea Pitch Modal */}
       <RegistrationModal

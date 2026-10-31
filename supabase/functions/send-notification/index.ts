@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://esm.sh/zod@3.22.4";
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse } from "../_shared/rateLimiter.ts";
+import { captureEdgeException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -233,6 +235,13 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Rate Limiting Enforcement (30 notification requests per minute per client)
+  const clientId = getClientIdentifier(req);
+  const rateLimit = checkRateLimit(clientId, { limit: 30, windowSeconds: 60 });
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(rateLimit, corsHeaders);
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -417,6 +426,7 @@ Deno.serve(async (req: Request) => {
     }
 
     console.error("send-notification internal error:", err);
+    await captureEdgeException(err, "send-notification", req);
     return new Response(
       JSON.stringify({
         error: err.message || "An unexpected error occurred while sending notification.",

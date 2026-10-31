@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Navbar } from '../components/Navigation/Navbar';
 import { Footer } from '../components/Navigation/Footer';
 import { 
@@ -11,8 +12,11 @@ import {
   useDeleteIdeaDraft
 } from '../hooks/useIdeas';
 import { authService, openAuthModal } from '../services/authService';
+import { problemBankService } from '../services/problemBankService';
 import { IdeaBoxSubmission, IdeaStage, User } from '../types';
 import { MilestoneTracker } from '../components/IdeaBox/MilestoneTracker';
+import { ProjectJourneyTracker } from '../components/Journey/ProjectJourneyTracker';
+import { IdeaRubricEvaluationModal } from '../components/Admin/IdeaRubricEvaluationModal';
 import {
   Lightbulb,
   Search,
@@ -31,7 +35,9 @@ import {
   TrendingUp,
   Tag,
   Flag,
-  Cloud
+  Cloud,
+  Compass,
+  Scale
 } from 'lucide-react';
 import '../styles/ideabox.css';
 
@@ -46,6 +52,7 @@ const DOMAINS = [
 ];
 
 export const IdeaBoxPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('All Domains');
@@ -53,6 +60,9 @@ export const IdeaBoxPage: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [expandedCommentsId, setExpandedCommentsId] = useState<string | null>(null);
   const [expandedMilestonesId, setExpandedMilestonesId] = useState<string | null>(null);
+  const [expandedJourneyId, setExpandedJourneyId] = useState<string | null>(null);
+  const [adoptedProblemId, setAdoptedProblemId] = useState<string | null>(null);
+  const [evaluatingIdea, setEvaluatingIdea] = useState<IdeaBoxSubmission | null>(null);
   const [commentInputMap, setCommentInputMap] = useState<Record<string, string>>({});
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
@@ -97,6 +107,28 @@ export const IdeaBoxPage: React.FC = () => {
     const unsubAuth = authService.onAuthStateChange(u => setUser(u));
     return () => unsubAuth();
   }, []);
+
+  // Check URL parameters for Problem Bank Adoption
+  useEffect(() => {
+    const pId = searchParams.get('problemId');
+    const pTitle = searchParams.get('problemTitle');
+    const pDomain = searchParams.get('domain');
+
+    if (pId || pTitle) {
+      if (pId) setAdoptedProblemId(pId);
+      setIsSubmitModalOpen(true);
+      if (pTitle && !title) {
+        setTitle(pTitle);
+      }
+      if (pTitle && !problemStatement) {
+        setProblemStatement(`Addressing Problem Challenge: ${pTitle}\n\nTarget Beneficiaries & Context: `);
+      }
+      if (pDomain) {
+        const found = DOMAINS.find(d => d.toLowerCase().includes(pDomain.toLowerCase()) || pDomain.toLowerCase().includes(d.toLowerCase()));
+        if (found) setDomain(found);
+      }
+    }
+  }, [searchParams]);
 
   // Restore server-side draft when opening submit modal
   useEffect(() => {
@@ -207,6 +239,20 @@ export const IdeaBoxPage: React.FC = () => {
         authorRole: user.role,
         authorDepartment: user.department
       });
+
+      // Increment adoption counter if pitching for a problem statement
+      if (adoptedProblemId) {
+        await problemBankService.adoptProblem(adoptedProblemId);
+        setAdoptedProblemId(null);
+      }
+
+      // Clear search params if present
+      if (searchParams.get('problemId')) {
+        searchParams.delete('problemId');
+        searchParams.delete('problemTitle');
+        searchParams.delete('domain');
+        setSearchParams(searchParams);
+      }
 
       // Clear server-side draft after successful submission
       await deleteDraftMutation.mutateAsync();
@@ -431,6 +477,7 @@ export const IdeaBoxPage: React.FC = () => {
               const hasUpvoted = user ? idea.upvoters?.includes(user.id) : false;
               const isCommentsOpen = expandedCommentsId === idea.id;
               const isMilestonesOpen = expandedMilestonesId === idea.id;
+              const isJourneyOpen = expandedJourneyId === idea.id;
 
             return (
               <div key={idea.id} className="ideabox-card">
@@ -551,6 +598,27 @@ export const IdeaBoxPage: React.FC = () => {
                       <Flag size={15} />
                       <span>Milestones</span>
                     </button>
+
+                    <button
+                      className={`ideabox-action-btn ${isJourneyOpen ? 'active' : ''}`}
+                      onClick={() => setExpandedJourneyId(isJourneyOpen ? null : idea.id)}
+                      title="Innovation Journey (8-Stage Pipeline)"
+                    >
+                      <Compass size={15} />
+                      <span>Journey</span>
+                    </button>
+
+                    {(user?.role === 'Admin' || user?.role === 'Execom' || user?.role === 'Reviewer' || user?.role === 'Faculty') && (
+                      <button
+                        className="ideabox-action-btn"
+                        onClick={() => setEvaluatingIdea(idea)}
+                        title="Score Rubric (Problem, Feasibility, Impact, Team)"
+                        style={{ color: 'var(--accent-cyan)' }}
+                      >
+                        <Scale size={15} />
+                        <span>Evaluate</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -611,6 +679,13 @@ export const IdeaBoxPage: React.FC = () => {
                       ideaId={idea.id}
                       canEdit={Boolean(user && (user.id === idea.authorId || user.role === 'Admin'))}
                     />
+                  </div>
+                )}
+
+                {/* Expandable 8-Stage Innovation Journey Tracker */}
+                {isJourneyOpen && (
+                  <div style={{ padding: '0 1.25rem 1.25rem' }}>
+                    <ProjectJourneyTracker idea={idea} />
                   </div>
                 )}
               </div>
@@ -781,6 +856,18 @@ export const IdeaBoxPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Rubric Peer / Nodal Review Modal */}
+      {evaluatingIdea && (
+        <IdeaRubricEvaluationModal
+          idea={evaluatingIdea}
+          onClose={() => setEvaluatingIdea(null)}
+          onNotify={(msg) => {
+            setSuccessToast(msg);
+            setTimeout(() => setSuccessToast(null), 5000);
+          }}
+        />
       )}
 
       {/* Success Toast */}

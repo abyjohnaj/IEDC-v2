@@ -143,6 +143,87 @@
   gap: 1rem;
 }
 
+/* Registrant Role Selection */
+.auth-role-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.auth-role-header-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.auth-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 480px) {
+  .auth-role-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.auth-role-btn {
+  padding: 0.6rem 0.4rem;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.auth-role-btn:hover {
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.4);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.auth-role-btn.active {
+  background: rgba(2, 132, 199, 0.14);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--accent-cyan);
+}
+
+.auth-role-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-role-btn-label {
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.auth-role-badge-hint {
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px dashed rgba(2, 132, 199, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .auth-input-group {
   display: flex;
   flex-direction: column;
@@ -818,20 +899,23 @@
 }
 
 .nav-user-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0.85rem 0.35rem 0.45rem;
+  gap: 0.55rem;
+  height: 38px;
+  padding: 0 0.75rem 0 0.35rem;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: var(--transition);
+  box-sizing: border-box;
 }
 
 .nav-user-pill:hover {
   border-color: var(--accent-cyan);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.18);
+  transform: translateY(-1px);
 }
 
 .nav-user-avatar {
@@ -840,21 +924,22 @@
   border-radius: 50%;
   object-fit: cover;
   background: #cbd5e1;
+  flex-shrink: 0;
 }
 
 .nav-user-name {
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--text-primary);
-  max-width: 100px;
+  max-width: 95px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .nav-user-kyc-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -874,6 +959,17 @@
   box-shadow: 0 0 6px rgba(225, 29, 72, 0.6);
 }
 
+.nav-user-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.nav-user-chevron.open {
+  transform: rotate(180deg);
+  color: var(--accent-cyan);
+}
+
 /* Dropdown Menu */
 .nav-user-menu {
   position: absolute;
@@ -883,7 +979,8 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 20px 40px -6px rgba(0, 0, 0, 0.3), 0 0 15px rgba(2, 132, 199, 0.1);
+  backdrop-filter: blur(20px);
   padding: 0.6rem;
   z-index: 1000;
   display: flex;
@@ -958,3 +1055,432 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   MY EVENTS & PASSES SECTION STYLING
+   ========================================================================== */
+
+.my-events-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.my-events-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.my-events-filter-btn:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.05);
+}
+
+.my-events-filter-btn.active {
+  background: var(--accent-cyan);
+  color: #0f172a;
+  border-color: var(--accent-cyan);
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
+}
+
+.my-events-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.my-events-filter-btn.active .my-events-filter-count {
+  background: rgba(15, 23, 42, 0.25);
+  color: #0f172a;
+}
+
+/* Event Cards */
+.my-event-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.my-event-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+}
+
+.my-event-card.fest-card {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, var(--bg-card) 60%);
+}
+
+.my-event-card.fest-card:hover {
+  border-color: #a855f7;
+  box-shadow: 0 12px 30px -5px rgba(168, 85, 247, 0.25);
+}
+
+.my-event-card.hackathon-card {
+  border-color: rgba(6, 182, 212, 0.4);
+  background: linear-gradient(135deg, rgba(8, 51, 68, 0.4) 0%, var(--bg-card) 60%);
+}
+
+.my-event-top-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.my-event-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+}
+
+.my-event-badge.fest {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.my-event-badge.hackathon {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.my-event-badge.talk {
+  background: rgba(6, 182, 212, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.my-event-badge.gaming {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.my-event-badge.movie {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.my-event-badge.workshop {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.my-event-pass-token {
+  font-family: monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-color);
+}
+
+.my-event-body {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .my-event-body {
+    flex-direction: column;
+  }
+}
+
+.my-event-poster {
+  width: 140px;
+  height: 100px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  background: #1e293b;
+}
+
+@media (max-width: 640px) {
+  .my-event-poster {
+    width: 100%;
+    height: 140px;
+  }
+}
+
+.my-event-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.my-event-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.my-event-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.my-event-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.my-event-desc {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Hackathon Integration Box Inside Event Card */
+.my-event-hackathon-box {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  box-shadow: inset 0 0 20px rgba(6, 182, 212, 0.05);
+}
+
+.my-event-hackathon-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.my-event-hackathon-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--accent-cyan);
+}
+
+.my-event-squad-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.my-event-squad-member {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg-card);
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.my-event-member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-cyan);
+}
+
+/* Fest Portal Box Inside Event Card */
+.my-event-fest-box {
+  background: linear-gradient(135deg, rgba(88, 28, 135, 0.25) 0%, rgba(30, 27, 75, 0.4) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+}
+
+.my-event-fest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.9rem 0;
+}
+
+.my-event-fest-chip {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+.my-event-fest-chip.highlight {
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #d8b4fe;
+  background: rgba(168, 85, 247, 0.15);
+}
+
+/* Actions Footer of Event Card */
+.my-event-actions-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.my-event-actions-strip .btn-fest-launch {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+.my-event-actions-strip .btn-fest-launch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px rgba(236, 72, 153, 0.5);
+}
+
+/* Digital Pass Modal */
+.event-pass-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.event-pass-ticket {
+  background: #0f172a;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 460px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 35px rgba(6, 182, 212, 0.25);
+  color: #fff;
+}
+
+.event-pass-header {
+  background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+  padding: 1.25rem 1.5rem;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.event-pass-body {
+  padding: 1.5rem;
+}
+
+.event-pass-field {
+  margin-bottom: 0.9rem;
+}
+
+.event-pass-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.event-pass-field-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.event-pass-barcode-sim {
+  margin: 1.25rem 0 0.5rem;
+  padding: 0.75rem;
+  background: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.event-pass-barcode-lines {
+  height: 48px;
+  width: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    #000,
+    #000 2px,
+    #fff 2px,
+    #fff 5px,
+    #000 5px,
+    #000 9px,
+    #fff 9px,
+    #fff 11px
+  );
+}
+
+.event-pass-barcode-num {
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: #0f172a;
+  letter-spacing: 0.2em;
+  font-weight: 800;
+}
+

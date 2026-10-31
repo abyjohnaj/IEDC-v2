@@ -1,0 +1,578 @@
+/* =========================================================
+   FESTIVAL PORTAL STYLES (EKAH '26 Techno-Cultural Odyssey)
+   Looks & feels like an independent, high-production festival microsite
+   ========================================================= */
+
+.fest-page {
+  min-height: 100vh;
+  background: #090d16;
+  color: #f8fafc;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Background Atmosphere Glows */
+.fest-glow-orb-1 {
+  position: absolute;
+  top: 10%;
+  left: 5%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(0,0,0,0) 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fest-glow-orb-2 {
+  position: absolute;
+  top: 35%;
+  right: -5%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.16) 0%, rgba(0,0,0,0) 70%);
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fest-glow-orb-3 {
+  position: absolute;
+  bottom: 15%;
+  left: 20%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.14) 0%, rgba(0,0,0,0) 70%);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* FEST NAVBAR */
+.fest-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(9, 13, 22, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.85rem 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.fest-nav-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.fest-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.fest-logo-badge {
+  font-family: var(--font-heading, sans-serif);
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, #38bdf8 0%, #c084fc 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.fest-brand-sub {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fest-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fest-nav-link {
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.fest-nav-link:hover {
+  color: #38bdf8;
+}
+
+.fest-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.fest-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.fest-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* FEST HERO SECTION */
+.fest-hero {
+  position: relative;
+  z-index: 1;
+  padding: 5rem 1.5rem 4rem;
+  text-align: center;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.fest-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 1rem;
+  border-radius: 9999px;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #d8b4fe;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+
+.fest-hero-title {
+  font-family: var(--font-heading, sans-serif);
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.25rem;
+}
+
+.fest-gradient-text {
+  background: linear-gradient(135deg, #38bdf8 10%, #a855f7 50%, #ec4899 90%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.fest-hero-desc {
+  font-size: 1.15rem;
+  color: #94a3b8;
+  max-width: 720px;
+  margin: 0 auto 2.2rem;
+  line-height: 1.6;
+}
+
+/* COUNTDOWN TIMER */
+.fest-countdown-container {
+  display: inline-flex;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 1.2rem 1.75rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.fest-countdown-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 65px;
+}
+
+.fest-countdown-num {
+  font-family: var(--font-heading, monospace);
+  font-size: 2rem;
+  font-weight: 900;
+  color: #38bdf8;
+  line-height: 1;
+}
+
+.fest-countdown-lbl {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.35rem;
+}
+
+/* FEST BUTTONS */
+.fest-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 2rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.4);
+  transition: all 0.25s ease;
+}
+
+.fest-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(124, 58, 237, 0.5);
+}
+
+.fest-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1.8rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f1f5f9;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.fest-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+/* FEST STATS BAR */
+.fest-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  max-width: 900px;
+  margin: 3.5rem auto 0;
+}
+
+@media (min-width: 768px) {
+  .fest-stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.fest-stat-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.fest-stat-val {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.fest-stat-lbl {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+/* SUB-EVENTS SECTION */
+.fest-section {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 5rem auto;
+  padding: 0 1.5rem;
+}
+
+.fest-section-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.fest-section-tag {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.fest-section-title {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+/* Filter Pills */
+.fest-filters {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 2.5rem;
+}
+
+.fest-filter-btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fest-filter-btn:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.fest-filter-btn.active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.2));
+  border-color: #38bdf8;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+/* Sub-Events Grid */
+.fest-subevents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem;
+}
+
+.fest-subevent-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.fest-subevent-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+}
+
+.fest-subevent-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.fest-subevent-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fest-subevent-badge.Hackathon { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.fest-subevent-badge.Gaming { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+.fest-subevent-badge.Ideathon { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.fest-subevent-badge.MovieShow { background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); }
+.fest-subevent-badge.PanelDiscussion { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.fest-subevent-badge.ProShow { background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); }
+
+.fest-prize-chip {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.fest-subevent-title {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #f8fafc;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.fest-subevent-desc {
+  font-size: 0.88rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.fest-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fest-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fest-subevent-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+/* SCHEDULE / TIMELINE SECTION */
+.fest-timeline-nav {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.fest-timeline-tab {
+  padding: 0.75rem 1.75rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.25s ease;
+}
+
+.fest-timeline-tab.active {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: #38bdf8;
+  color: #f8fafc;
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.2);
+}
+
+.fest-timeline-tab-day {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+}
+
+.fest-timeline-tab-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.fest-timeline-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.fest-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.fest-timeline-item:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateX(4px);
+}
+
+.fest-timeline-time {
+  font-family: var(--font-heading, monospace);
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #38bdf8;
+  white-space: nowrap;
+  min-width: 90px;
+}
+
+.fest-timeline-content h4 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f8fafc;
+  margin-bottom: 0.25rem;
+}
+
+.fest-timeline-content p {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* FEST FOOTER */
+.fest-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  background: rgba(9, 13, 22, 0.95);
+  position: relative;
+  z-index: 1;
+}
+
+.fest-footer-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}

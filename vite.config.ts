@@ -16,11 +16,26 @@ export default defineConfig(({ mode, command }) => {
     }
   }
 
+  const securityHeaders = {
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  };
+
   return {
     plugins: [react()],
+    build: {
+      sourcemap: true,
+    },
     server: {
       port: 3000,
-      open: false
+      open: false,
+      headers: securityHeaders,
+    },
+    preview: {
+      port: 5000,
+      headers: securityHeaders,
     }
   };
 });

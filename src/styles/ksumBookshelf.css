@@ -1,0 +1,831 @@
+/* ==========================================================================
+   IEDC BMCE Library & Wooden Wall Bookshelves (Single Row Mode)
+   ========================================================================== */
+
+.ksum-canvas-section {
+  position: relative;
+  width: 100%;
+  padding: 2.5rem 0 3rem 0;
+  background: var(--bg-primary, #fcfbf8);
+  border-top: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
+  border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
+  overflow: hidden;
+}
+
+/* Subtle architectural wall texture */
+.ksum-canvas-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(2, 132, 199, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(217, 119, 6, 0.03) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ksum-canvas-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.2rem;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .ksum-canvas-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 3.5rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Left Column: Clean IEDC BMCE Library Narrative
+   -------------------------------------------------------------------------- */
+
+.ksum-canvas-left {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .ksum-canvas-left {
+    width: 38%;
+  }
+}
+
+.ksum-canvas-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  padding: 0.35rem 0.9rem;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-cyan, #0284c7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ksum-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0284c7;
+  box-shadow: 0 0 8px #0284c7;
+  animation: ksumPulse 2s infinite ease-in-out;
+}
+
+@keyframes ksumPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.ksum-canvas-headline {
+  font-family: var(--font-heading, 'Outfit', sans-serif);
+  font-size: clamp(2.2rem, 3.8vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.ksum-headline-accent {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ksum-canvas-body-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  color: var(--text-secondary, #334155);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.ksum-canvas-body-text p {
+  margin: 0;
+}
+
+/* Shelf Step Dots in Left Column */
+.ksum-vertical-shelf-indicator-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
+}
+
+.ksum-shelf-stepper-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+}
+
+.ksum-shelf-stepper-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ksum-stepper-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.4);
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  padding: 0;
+}
+
+.ksum-stepper-dot.active {
+  background: var(--accent-cyan, #0284c7);
+  transform: scale(1.35);
+  box-shadow: 0 0 8px rgba(2, 132, 199, 0.5);
+}
+
+.ksum-shelf-stepper-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  font-style: italic;
+  margin-left: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Right Column: Single-Row Viewport with Vertical Row Scroller
+   -------------------------------------------------------------------------- */
+
+.ksum-canvas-right-single-area {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .ksum-canvas-right-single-area {
+    width: 62%;
+    padding-left: 0.5rem;
+  }
+}
+
+/* Floating Vertical Row Navigation Chevrons */
+.ksum-row-vertical-nav {
+  position: absolute;
+  right: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+  padding: 6px 4px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 768px) {
+  .ksum-row-vertical-nav {
+    right: -6px;
+  }
+}
+
+.ksum-row-nav-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ksum-row-nav-arrow:hover:not(.disabled) {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+  transform: scale(1.1);
+}
+
+.ksum-row-nav-arrow.disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.ksum-row-nav-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  padding: 2px 0;
+}
+
+/* Clean Clickable Shelf Selector List */
+.ksum-shelf-selector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.ksum-shelf-selector-heading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-cyan, #0284c7);
+}
+
+.ksum-shelf-selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ksum-shelf-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card, #ffffff);
+  border: 1.5px solid rgba(148, 163, 184, 0.25);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.ksum-shelf-select-btn:hover {
+  border-color: rgba(2, 132, 199, 0.5);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+}
+
+.ksum-shelf-select-btn.active {
+  background: rgba(2, 132, 199, 0.06);
+  border-color: #0284c7;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.16);
+}
+
+.ksum-shelf-select-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ksum-shelf-select-title {
+  font-family: var(--font-heading, 'Outfit', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.ksum-shelf-select-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.ksum-shelf-select-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  background: rgba(148, 163, 184, 0.15);
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+}
+
+.ksum-shelf-select-btn.active .ksum-shelf-select-count {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+/* Viewport displaying EXACTLY ONE row at a time */
+.ksum-canvas-right-viewport {
+  width: 100%;
+  height: 480px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+/* Vertical Slider containing all shelf rows */
+.ksum-shelves-slider {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Each slide takes 100% of the viewport height */
+.ksum-shelf-slide-item {
+  width: 100%;
+  height: 480px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* --------------------------------------------------------------------------
+   Wooden Bookshelf Row Component
+   -------------------------------------------------------------------------- */
+
+.ksum-shelf-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ksum-shelf-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.8rem;
+  padding: 0 0.5rem;
+}
+
+.ksum-shelf-title {
+  font-family: var(--font-heading, 'Outfit', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ksum-shelf-tag-badge {
+  padding: 0.2rem 0.6rem;
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ksum-shelf-scroll-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .ksum-shelf-scroll-hint {
+    display: inline-block;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Wooden Bookshelf Stage & Horizontal Scroller
+   -------------------------------------------------------------------------- */
+
+.ksum-shelf-stage {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Left & Right Chevron Navigation Buttons */
+.ksum-shelf-nav-btn {
+  position: absolute;
+  top: 42%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 40;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.15);
+  backdrop-filter: blur(8px);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ksum-shelf-nav-btn.visible {
+  opacity: 0.85;
+  pointer-events: auto;
+}
+
+.ksum-shelf-nav-btn:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.25);
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+.ksum-shelf-nav-btn.prev {
+  left: -10px;
+}
+
+.ksum-shelf-nav-btn.next {
+  right: -10px;
+}
+
+@media (max-width: 640px) {
+  .ksum-shelf-nav-btn.prev {
+    left: 2px;
+  }
+  .ksum-shelf-nav-btn.next {
+    right: 2px;
+  }
+}
+
+/* Fade gradients */
+.ksum-shelf-fade {
+  position: absolute;
+  top: 0;
+  bottom: 40px;
+  width: 40px;
+  pointer-events: none;
+  z-index: 25;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.ksum-shelf-fade.left {
+  left: 0;
+  background: linear-gradient(to right, var(--bg-primary, #fcfbf8), transparent);
+}
+
+.ksum-shelf-fade.right {
+  right: 0;
+  background: linear-gradient(to left, var(--bg-primary, #fcfbf8), transparent);
+}
+
+.ksum-shelf-fade.active {
+  opacity: 1;
+}
+
+/* Horizontally Scrollable Track */
+.ksum-shelf-track {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 2.2rem;
+  padding: 1.5rem 1rem 0 1rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  cursor: grab;
+  z-index: 30;
+  /* Hide scrollbars */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ksum-shelf-track::-webkit-scrollbar {
+  display: none;
+}
+
+.ksum-shelf-track.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  scroll-behavior: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Book Item & Card Aesthetics
+   -------------------------------------------------------------------------- */
+
+.ksum-shelf-book-item {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.ksum-book-label {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 0.94rem;
+  font-weight: 500;
+  color: #333333;
+  margin-bottom: 0.9rem;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 195px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.25s ease;
+}
+
+[data-theme="dark"] .ksum-book-label {
+  color: #cbd5e1;
+}
+
+.ksum-shelf-book-item:hover .ksum-book-label {
+  color: #0284c7;
+  font-weight: 600;
+}
+
+/* Book Card Container */
+.ksum-book-card {
+  position: relative;
+  width: 175px;
+  height: 245px;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom center;
+}
+
+@media (min-width: 768px) {
+  .ksum-book-card {
+    width: 190px;
+    height: 265px;
+    margin-bottom: 0;
+  }
+  .ksum-book-label {
+    max-width: 210px;
+    font-size: 1rem;
+  }
+}
+
+/* Hover Lift Effect */
+.ksum-shelf-book-item:hover .ksum-book-card {
+  transform: translateY(-14px) scale(1.06);
+}
+
+/* Book Cover Image Wrap */
+.ksum-book-cover-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 
+    0 10px 25px -4px rgba(15, 23, 42, 0.25),
+    0 4px 6px -2px rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+}
+
+.ksum-book-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Realistic Gloss Sheen across cover */
+.ksum-book-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+  pointer-events: none;
+}
+
+/* Left Book Spine Highlight */
+.ksum-book-spine-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+  pointer-events: none;
+}
+
+/* Hover Action Pill */
+.ksum-book-hover-pill {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.35rem 0.85rem;
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: all 0.25s ease;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.ksum-shelf-book-item:hover .ksum-book-hover-pill {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Contact Shadow on Wooden Shelf Floor */
+.ksum-book-contact-shadow {
+  position: absolute;
+  bottom: -6px;
+  left: 8%;
+  right: 8%;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(35, 18, 8, 0.55) 0%, rgba(35, 18, 8, 0) 75%);
+  pointer-events: none;
+  transition: all 0.35s ease;
+  z-index: 5;
+}
+
+.ksum-shelf-book-item:hover .ksum-book-contact-shadow {
+  transform: scale(0.85);
+  opacity: 0.35;
+  filter: blur(3px);
+}
+
+/* Fallback CSS Cover if no image */
+.ksum-book-custom-cover {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  border-left: 10px solid #1e3a8a;
+  padding: 1rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+}
+
+.ksum-fallback-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.ksum-fallback-title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ksum-fallback-date {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* --------------------------------------------------------------------------
+   Wooden Wall Shelf Plank
+   -------------------------------------------------------------------------- */
+
+.ksum-wooden-shelf-plank-wrap {
+  width: 100%;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -6px;
+  pointer-events: none;
+}
+
+.ksum-wooden-shelf-beam {
+  width: 100%;
+  height: 22px;
+  background: linear-gradient(180deg, #965022 0%, #763b15 28%, #52270c 70%, #301605 100%);
+  border-top: 2px solid #b86e35;
+  border-bottom: 3px solid #1f0d03;
+  border-radius: 4px;
+  box-shadow: 0 16px 28px -4px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.ksum-wooden-shelf-beam::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.35) 100%);
+  border-radius: 3px 3px 0 0;
+}
+
+.ksum-wooden-shelf-plank-img {
+  width: 100%;
+  max-width: 950px;
+  height: auto;
+  display: block;
+  object-fit: fill;
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.16));
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.9;
+}
+
+[data-theme="dark"] .ksum-wooden-shelf-plank-img {
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45)) brightness(0.92);
+}
+
+/* --------------------------------------------------------------------------
+   Dark Mode Adjustments
+   -------------------------------------------------------------------------- */
+
+[data-theme="dark"] .ksum-canvas-section {
+  background: #090e1a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .ksum-canvas-headline {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .ksum-canvas-body-text {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .ksum-shelf-nav-btn {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .ksum-shelf-nav-btn:hover {
+  background: #1e293b;
+  color: #38bdf8;
+  border-color: #38bdf8;
+}
+
+[data-theme="dark"] .ksum-row-vertical-nav {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .ksum-row-nav-arrow {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .ksum-row-nav-arrow:hover:not(.disabled) {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .ksum-stepper-dot {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .ksum-stepper-dot.active {
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}

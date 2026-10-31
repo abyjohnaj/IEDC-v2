@@ -4,6 +4,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://esm.sh/zod@3.22.4";
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse } from "../_shared/rateLimiter.ts";
+import { captureEdgeException } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +26,13 @@ const KycSubmitSchema = z.object({
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Rate Limiting: 10 submissions per minute per client
+  const clientId = getClientIdentifier(req);
+  const rateLimit = checkRateLimit(clientId, { limit: 10, windowSeconds: 60 });
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(rateLimit, corsHeaders);
   }
 
   try {
@@ -169,6 +178,7 @@ Deno.serve(async (req: Request) => {
       );
     }
     console.error("Internal KYC submit error:", err);
+    await captureEdgeException(err, "kyc-submit", req);
     return new Response(
       JSON.stringify({ error: err.message || "An unexpected error occurred during KYC submission" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

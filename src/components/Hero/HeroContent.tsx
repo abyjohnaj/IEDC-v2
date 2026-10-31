@@ -44,11 +44,6 @@ const StatCounter: React.FC<StatProps> = ({ target, suffix, label }) => {
 export const HeroContent: React.FC = () => {
   return (
     <div className="hero-content">
-      <div className="notebook-badge">
-        <span className="notebook-badge-dot">📓</span>
-        <span>INNOVATION JOURNAL // CHAPTER 01</span>
-      </div>
-
       <h1 className="hero-title">
         Empowering Next-Gen{' '}
         <span className="gradient-text">Innovators & Founders</span>
@@ -71,6 +66,20 @@ export const HeroContent: React.FC = () => {
         <StatCounter target={25} suffix="+" label="Workshops & Bootcamps" />
         <StatCounter target={500} suffix="+" label="Active Innovators" />
         <StatCounter target={10} suffix="L+" label="Grant & Seed Support" />
+      </div>
+
+      <div 
+        className="hero-scroll-launch-hint"
+        onClick={() => {
+          const aboutSection = document.getElementById('about');
+          if (aboutSection) {
+            aboutSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+        title="Scroll to launch into next chapter"
+      >
+        <span>Scroll to Explore</span>
+        <span className="scroll-arrow-anim">↓</span>
       </div>
     </div>
   );

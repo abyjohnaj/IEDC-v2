@@ -867,7 +867,17 @@ export const hackathonService = {
     return teams[index];
   },
 
-  // Admin scoring & feedback
+  // Jury and Admin scoring & feedback
+  async gradeTeamSubmission(teamId: string, score: {
+    innovation: number;
+    technical: number;
+    presentation: number;
+    feasibility: number;
+    total: number;
+  }, feedback: string, reviewerName: string): Promise<HackathonTeam> {
+    return this.adminGradeSubmission(teamId, score, feedback, reviewerName);
+  },
+
   async adminGradeSubmission(teamId: string, score: {
     innovation: number;
     technical: number;
